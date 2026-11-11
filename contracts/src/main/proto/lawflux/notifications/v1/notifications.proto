@@ -1,0 +1,10 @@
+syntax = "proto3";
+package lawflux.notifications.v1;
+option java_package = "ma.lawflux.contracts.notifications.v1";
+option java_multiple_files = true;
+
+// Contrat initial : opérations métier non implémentées dans ce scaffolding.
+service NotificationService { rpc ListNotifications (ListNotificationsRequest) returns (ListNotificationsReply); }
+message ListNotificationsRequest { int32 page_size = 1; string page_token = 2; }
+message Notification { string id = 1; string title = 2; bool read = 3; }
+message ListNotificationsReply { repeated Notification items = 1; string next_page_token = 2; }

@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: document-service
+  grpc:
+    server:
+      host: ${GRPC_HOST:127.0.0.1}
+      port: ${GRPC_PORT:9093}
+      reflection:
+        enabled: false
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/lawflux_document}
+    username: ${DB_USER:lawflux_document}
+    password: ${DB_PASSWORD}
+  flyway:
+    enabled: true
+  config:
+    import: classpath:lawflux-defaults.yml
+server:
+  port: ${HTTP_PORT:8083}
+  address: ${HTTP_ADDRESS:127.0.0.1}
+
+lawflux:
+  documents:
+    storage-root: ${DOCUMENT_STORAGE_ROOT:./var/documents}
+    max-file-size: 20MB

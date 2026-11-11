@@ -1,0 +1,9 @@
+syntax = "proto3";
+package lawflux.platform.v1;
+option java_package = "ma.lawflux.contracts.platform.v1";
+option java_multiple_files = true;
+
+// Sonde technique sans aucune donnée métier ni contrôle d'accès implicite.
+service ServiceProbe { rpc Ping (ProbeRequest) returns (ProbeReply); }
+message ProbeRequest {}
+message ProbeReply { string service = 1; string state = 2; string correlation_id = 3; }

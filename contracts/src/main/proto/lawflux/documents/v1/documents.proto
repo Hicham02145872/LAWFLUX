@@ -1,0 +1,9 @@
+syntax = "proto3";
+package lawflux.documents.v1;
+option java_package = "ma.lawflux.contracts.documents.v1";
+option java_multiple_files = true;
+
+// Contrat initial : opérations métier non implémentées dans ce scaffolding.
+service DocumentService { rpc GetDocument (GetDocumentRequest) returns (DocumentReply); }
+message GetDocumentRequest { string document_id = 1; }
+message DocumentReply { string id = 1; string case_id = 2; string filename = 3; int32 version = 4; }

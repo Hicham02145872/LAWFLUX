@@ -1,0 +1,15 @@
+syntax = "proto3";
+package lawflux.cases.v1;
+option java_package = "ma.lawflux.contracts.cases.v1";
+option java_multiple_files = true;
+
+// Contrat initial : opérations métier non implémentées dans ce scaffolding.
+service CaseService {
+  rpc GetCase (GetCaseRequest) returns (CaseReply);
+  rpc CheckCaseAccess (CheckCaseAccessRequest) returns (CheckCaseAccessReply);
+}
+message GetCaseRequest { string case_id = 1; }
+message CaseReply { string id = 1; string title = 2; string status = 3; }
+// L'utilisateur et son cabinet proviennent du contexte authentifié, jamais du body.
+message CheckCaseAccessRequest { string case_id = 1; string action = 2; }
+message CheckCaseAccessReply { bool allowed = 1; }

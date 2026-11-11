@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: notification-worker
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/lawflux_notifications}
+    username: ${DB_USER:lawflux_notifications}
+    password: ${DB_PASSWORD}
+  flyway:
+    enabled: true
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:lawflux}
+    password: ${RABBITMQ_PASSWORD}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 500ms
+  config:
+    import: classpath:lawflux-defaults.yml
+server:
+  port: ${HTTP_PORT:8085}
+  address: ${HTTP_ADDRESS:127.0.0.1}

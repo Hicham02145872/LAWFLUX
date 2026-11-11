@@ -1,0 +1,9 @@
+syntax = "proto3";
+package lawflux.billing.v1;
+option java_package = "ma.lawflux.contracts.billing.v1";
+option java_multiple_files = true;
+
+// Contrat initial : opérations métier non implémentées dans ce scaffolding.
+service BillingService { rpc GetInvoice (GetInvoiceRequest) returns (InvoiceReply); }
+message GetInvoiceRequest { string invoice_id = 1; }
+message InvoiceReply { string id = 1; string case_id = 2; int64 total_minor_units = 3; string currency = 4; string status = 5; }

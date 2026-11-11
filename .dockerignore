@@ -1,0 +1,9 @@
+.git
+.idea
+.cache
+tmp
+outputs
+**/target
+**/node_modules
+.env
+var

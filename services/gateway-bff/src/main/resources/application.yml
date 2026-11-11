@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: gateway-bff
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:lawflux}
+    password: ${RABBITMQ_PASSWORD}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 500ms
+  grpc:
+    client:
+      channels:
+        identity:
+          address: ${IDENTITY_GRPC_ADDRESS:localhost:9091}
+          negotiation-type: plaintext
+        cases:
+          address: ${CASES_GRPC_ADDRESS:localhost:9092}
+          negotiation-type: plaintext
+        documents:
+          address: ${DOCUMENTS_GRPC_ADDRESS:localhost:9093}
+          negotiation-type: plaintext
+        billing:
+          address: ${BILLING_GRPC_ADDRESS:localhost:9094}
+          negotiation-type: plaintext
+  config:
+    import: classpath:lawflux-defaults.yml
+server:
+  port: ${HTTP_PORT:8080}
+  address: ${HTTP_ADDRESS:127.0.0.1}
+
+lawflux:
+  scaffold-events-enabled: ${SCAFFOLD_EVENTS_ENABLED:false}

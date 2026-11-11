@@ -1,0 +1,180 @@
+name: lawflux
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: lawflux_admin
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Copier .env.example en .env}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?Mot de passe requis}
+      CASES_DB_PASSWORD: ${CASES_DB_PASSWORD:?Mot de passe requis}
+      DOCUMENTS_DB_PASSWORD: ${DOCUMENTS_DB_PASSWORD:?Mot de passe requis}
+      BILLING_DB_PASSWORD: ${BILLING_DB_PASSWORD:?Mot de passe requis}
+      NOTIFICATIONS_DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?Mot de passe requis}
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/01-init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lawflux_admin -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-lawflux}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Mot de passe requis}
+    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+    volumes: ["rabbitmq_data:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  gateway-bff:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+      args:
+        SERVICE: gateway-bff
+    environment:
+      HTTP_ADDRESS: 0.0.0.0
+      IDENTITY_GRPC_ADDRESS: identity-service:9091
+      CASES_GRPC_ADDRESS: case-service:9092
+      DOCUMENTS_GRPC_ADDRESS: document-service:9093
+      BILLING_GRPC_ADDRESS: billing-service:9094
+      SCAFFOLD_EVENTS_ENABLED: ${SCAFFOLD_EVENTS_ENABLED:-false}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-lawflux}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Mot de passe requis}
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/actuator/health/readiness | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 10
+  identity-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+      args:
+        SERVICE: identity-service
+    environment:
+      HTTP_ADDRESS: 0.0.0.0
+      GRPC_HOST: 0.0.0.0
+      DB_URL: jdbc:postgresql://postgres:5432/lawflux_identity
+      DB_USER: lawflux_identity
+      DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?Mot de passe requis}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8081/actuator/health/readiness | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 10
+  case-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+      args:
+        SERVICE: case-service
+    environment:
+      HTTP_ADDRESS: 0.0.0.0
+      GRPC_HOST: 0.0.0.0
+      DB_URL: jdbc:postgresql://postgres:5432/lawflux_cases
+      DB_USER: lawflux_cases
+      DB_PASSWORD: ${CASES_DB_PASSWORD:?Mot de passe requis}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8082/actuator/health/readiness | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 10
+  document-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+      args:
+        SERVICE: document-service
+    environment:
+      HTTP_ADDRESS: 0.0.0.0
+      GRPC_HOST: 0.0.0.0
+      DB_URL: jdbc:postgresql://postgres:5432/lawflux_documents
+      DB_USER: lawflux_documents
+      DB_PASSWORD: ${DOCUMENTS_DB_PASSWORD:?Mot de passe requis}
+      DOCUMENT_STORAGE_ROOT: /data/documents
+    volumes: ["document_data:/data/documents"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8083/actuator/health/readiness | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 10
+  billing-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+      args:
+        SERVICE: billing-service
+    environment:
+      HTTP_ADDRESS: 0.0.0.0
+      GRPC_HOST: 0.0.0.0
+      DB_URL: jdbc:postgresql://postgres:5432/lawflux_billing
+      DB_USER: lawflux_billing
+      DB_PASSWORD: ${BILLING_DB_PASSWORD:?Mot de passe requis}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8084/actuator/health/readiness | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 10
+  notification-worker:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+      args:
+        SERVICE: notification-worker
+    environment:
+      HTTP_ADDRESS: 0.0.0.0
+      DB_URL: jdbc:postgresql://postgres:5432/lawflux_notifications
+      DB_USER: lawflux_notifications
+      DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?Mot de passe requis}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-lawflux}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Mot de passe requis}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8085/actuator/health/readiness | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 10
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  document_data:

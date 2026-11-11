@@ -1,0 +1,9 @@
+syntax = "proto3";
+package lawflux.identity.v1;
+option java_package = "ma.lawflux.contracts.identity.v1";
+option java_multiple_files = true;
+
+// Contrat initial : opérations métier non implémentées dans ce scaffolding.
+service IdentityService { rpc GetCurrentUser (CurrentUserRequest) returns (CurrentUserReply); }
+message CurrentUserRequest {}
+message CurrentUserReply { string user_id = 1; string tenant_id = 2; repeated string roles = 3; }

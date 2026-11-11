@@ -1,0 +1,13 @@
+**/target/
+.idea/
+*.iml
+.vscode/
+.env
+.env.*
+!.env.example
+.cache/
+tmp/
+var/
+**/node_modules/
+frontend/dist/
+*.log
