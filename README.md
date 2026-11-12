@@ -103,7 +103,7 @@ Le message confirmé par le broker attend dans une file durable et le worker le 
 
 HTTP : seuls les health checks et diagnostics techniques sont ouverts ; le reste est refusé. gRPC : seul `ServiceProbe/Ping` est autorisé ; les appels métier sont refusés. Les contrats métier sont réservés et ne renvoient pas de données fictives. Aucun login, jeton de démonstration ou tenant fourni par le navigateur n’est considéré comme une authentification.
 
-À implémenter : identité/JWT, RBAC, contexte cabinet vérifié, droits dossier, modèles et migrations métier, CRUD, stockage avec validation d’upload, notifications métier, factures/PDF et interfaces React. Ajouter ensuite la vérification d’identité dans chaque service avant d’ouvrir les API. Ce réseau local en plaintext n’est pas une configuration de production ; TLS et authentification interservices restent à mettre en place.
+À implémenter : identité/JWT, RBAC, contexte cabinet vérifié, droits dossier, modèles et migrations métier, CRUD, stockage avec validation d’upload, notifications métier, factures/PDF et écrans métier. Ajouter ensuite la vérification d’identité dans chaque service avant d’ouvrir les API. Ce réseau local en plaintext n’est pas une configuration de production ; TLS et authentification interservices restent à mettre en place.
 
 Les health checks et tests du scaffold ne prouvent pas la recette métier A–E ni l’isolation de données qui n’existent pas encore.
 
@@ -113,7 +113,7 @@ Les health checks et tests du scaffold ne prouvent pas la recette métier A–E 
 - Fatima : interfaces clients, dossiers, tâches et tableau de bord — [user stories et écrans](docs/user-stories/P2-dossiers-collaboration.md).
 - Oumaima : interfaces documents, temps et factures — [user stories et écrans](docs/user-stories/P3-documents-facturation.md).
 
-Le dossier `frontend` documente les points d’entrée prévus ; l’application React n’est pas générée dans cette étape Spring. Les anciens documents de cadrage décrivent la cible ; le présent README décrit ce qui est réellement présent.
+Le socle React est dans `frontend`. Le [guide frontend](frontend/README.md) détaille le démarrage, le proxy vers le BFF et les dossiers de travail.
 
 ## Références techniques
 
