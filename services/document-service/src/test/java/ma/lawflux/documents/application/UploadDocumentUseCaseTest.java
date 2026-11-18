@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import ma.lawflux.documents.domain.CaseAccessDeniedException;
 import ma.lawflux.documents.domain.Document;
 import ma.lawflux.documents.domain.DocumentRepository;
 import ma.lawflux.documents.domain.DocumentType;
@@ -16,6 +17,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.util.unit.DataSize;
 
 class UploadDocumentUseCaseTest {
+
+    private final UUID cabinetId = UUID.randomUUID();
+    private final UUID caseId = UUID.randomUUID();
+    private final UUID foreignCaseId = UUID.randomUUID();
 
     private final List<Document> saved = new ArrayList<>();
     private final List<String> stored = new ArrayList<>();
@@ -50,20 +55,37 @@ class UploadDocumentUseCaseTest {
         }
     };
 
-    private final UploadDocumentUseCase useCase =
-            new UploadDocumentUseCase(repository, storage, DataSize.ofMegabytes(20));
+    // Seul le dossier du cabinet appelant est accessible.
+    private final CaseAccessChecker caseAccess =
+            (cabinet, caze) -> cabinet.equals(cabinetId) && caze.equals(caseId);
 
-    private UploadCommand command(String fileName, long size) {
-        return new UploadCommand(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+    private final UploadDocumentUseCase useCase =
+            new UploadDocumentUseCase(repository, storage, caseAccess, DataSize.ofMegabytes(20));
+
+    private UploadCommand command(UUID caze, String fileName, long size) {
+        return new UploadCommand(cabinetId, caze, UUID.randomUUID(),
                 "Karim", fileName, size, new ByteArrayInputStream(new byte[10]));
     }
 
+    private UploadCommand command(String fileName, long size) {
+        return command(caseId, fileName, size);
+    }
+
     @Test
-    void importe_un_pdf_valide() {
+    void accepte_un_pdf_pour_un_dossier_du_cabinet_appelant() {
         Document d = useCase.execute(command("Contrat de bail.pdf", 1024));
         assertThat(d.type()).isEqualTo(DocumentType.PDF);
+        assertThat(d.caseId()).isEqualTo(caseId);
         assertThat(saved).containsExactly(d);
         assertThat(stored).hasSize(1);
+    }
+
+    @Test
+    void refuse_un_dossier_d_un_autre_cabinet_sans_rien_stocker() {
+        assertThatThrownBy(() -> useCase.execute(command(foreignCaseId, "contrat.pdf", 1024)))
+                .isInstanceOf(CaseAccessDeniedException.class);
+        assertThat(stored).isEmpty();
+        assertThat(saved).isEmpty();
     }
 
     @Test
@@ -100,5 +122,27 @@ class UploadDocumentUseCaseTest {
         assertThatThrownBy(() -> useCase.execute(command("contrat.docx", 1024)))
                 .isInstanceOf(IllegalStateException.class);
         assertThat(deleted).isEqualTo(stored);
+    }
+
+    @Test
+    void accepte_un_nom_de_255_caracteres() {
+        String name = "a".repeat(251) + ".pdf";
+        assertThat(name).hasSize(255);
+        assertThat(useCase.execute(command(name, 1024)).name()).isEqualTo(name);
+    }
+
+    @Test
+    void refuse_un_nom_de_256_caracteres_avant_tout_stockage() {
+        String name = "a".repeat(252) + ".pdf";
+        assertThatThrownBy(() -> useCase.execute(command(name, 1024)))
+                .isInstanceOf(InvalidDocumentException.class);
+        assertThat(stored).isEmpty();
+    }
+
+    @Test
+    void compte_les_caracteres_et_non_les_unites_utf16() {
+        // 251 émojis + ".pdf" = 255 caractères, mais 506 unités UTF-16.
+        String name = "\uD83D\uDE00".repeat(251) + ".pdf";
+        assertThat(useCase.execute(command(name, 1024)).name()).isEqualTo(name);
     }
 }

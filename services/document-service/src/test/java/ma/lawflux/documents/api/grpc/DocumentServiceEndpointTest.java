@@ -1,14 +1,17 @@
 package ma.lawflux.documents.api.grpc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import ma.lawflux.contracts.documents.v1.DocumentSummary;
 import ma.lawflux.contracts.documents.v1.ListDocumentsReply;
 import ma.lawflux.contracts.documents.v1.ListDocumentsRequest;
@@ -16,6 +19,7 @@ import ma.lawflux.contracts.documents.v1.UploadDocumentReply;
 import ma.lawflux.contracts.documents.v1.UploadDocumentRequest;
 import ma.lawflux.contracts.documents.v1.UploadMetadata;
 import ma.lawflux.documents.application.CallerContext;
+import ma.lawflux.documents.application.CaseAccessChecker;
 import ma.lawflux.documents.application.ListDocumentsUseCase;
 import ma.lawflux.documents.application.UploadDocumentUseCase;
 import ma.lawflux.documents.domain.Document;
@@ -30,26 +34,43 @@ class DocumentServiceEndpointTest {
     private final UUID cabinetId = UUID.randomUUID();
     private final UUID otherCabinetId = UUID.randomUUID();
     private final UUID caseId = UUID.randomUUID();
+    private final UUID foreignCaseId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
 
     private final InMemoryDocumentRepository repository = new InMemoryDocumentRepository();
     private final InMemoryDocumentStorage storage = new InMemoryDocumentStorage();
     private final DataSize maxSize = DataSize.ofBytes(100);
+    private final CaseAccessChecker caseAccess =
+            (cabinet, caze) -> cabinet.equals(cabinetId) && caze.equals(caseId);
 
-    private final DocumentServiceEndpoint endpoint = new DocumentServiceEndpoint(
-            new ListDocumentsUseCase(repository),
-            new UploadDocumentUseCase(repository, storage, maxSize),
-            () -> new CallerContext(userId, cabinetId, "Karim"),
-            maxSize);
+    private final DocumentServiceEndpoint endpoint = endpointWith(Duration.ofSeconds(30));
+
+    private DocumentServiceEndpoint endpointWith(Duration idleTimeout) {
+        return new DocumentServiceEndpoint(
+                new ListDocumentsUseCase(repository),
+                new UploadDocumentUseCase(repository, storage, caseAccess, maxSize),
+                () -> new CallerContext(userId, cabinetId, "Karim"),
+                maxSize,
+                idleTimeout);
+    }
 
     private static class Recorder<T> implements StreamObserver<T> {
-        final List<T> values = new ArrayList<>();
-        Throwable error;
-        boolean completed;
+        final List<T> values = new CopyOnWriteArrayList<>();
+        final AtomicInteger terminals = new AtomicInteger();
+        volatile Throwable error;
+        volatile boolean completed;
 
         @Override public void onNext(T value) { values.add(value); }
-        @Override public void onError(Throwable t) { error = t; }
-        @Override public void onCompleted() { completed = true; }
+
+        @Override public void onError(Throwable t) {
+            error = t;
+            terminals.incrementAndGet();
+        }
+
+        @Override public void onCompleted() {
+            completed = true;
+            terminals.incrementAndGet();
+        }
     }
 
     private static UploadDocumentRequest metadata(UUID caseId, String fileName) {
@@ -87,6 +108,7 @@ class DocumentServiceEndpointTest {
 
         assertThat(response.error).isNull();
         assertThat(response.completed).isTrue();
+        assertThat(response.terminals.get()).isEqualTo(1);
         assertThat(repository.documents).hasSize(1);
         Document saved = repository.documents.get(0);
         assertThat(saved.sizeBytes()).isEqualTo(70);
@@ -107,7 +129,7 @@ class DocumentServiceEndpointTest {
         stream.onCompleted();
 
         assertThat(code(response.error)).isEqualTo(Status.Code.INVALID_ARGUMENT);
-        assertThat(response.completed).isFalse();
+        assertThat(response.terminals.get()).isEqualTo(1);
         assertThat(repository.documents).isEmpty();
         assertThat(storage.files).isEmpty();
     }
@@ -150,6 +172,59 @@ class DocumentServiceEndpointTest {
         assertThat(response.completed).isFalse();
         assertThat(repository.documents).isEmpty();
         assertThat(storage.files).isEmpty();
+    }
+
+    @Test
+    void refuse_un_import_vers_un_dossier_d_un_autre_cabinet() {
+        Recorder<UploadDocumentReply> response = new Recorder<>();
+        StreamObserver<UploadDocumentRequest> stream = endpoint.uploadDocument(response);
+
+        stream.onNext(metadata(foreignCaseId, "contrat.pdf"));
+        stream.onNext(chunk(10));
+        stream.onCompleted();
+
+        assertThat(code(response.error)).isEqualTo(Status.Code.PERMISSION_DENIED);
+        assertThat(response.terminals.get()).isEqualTo(1);
+        assertThat(storage.files).isEmpty();
+        assertThat(repository.documents).isEmpty();
+    }
+
+    @Test
+    void coupe_un_import_inactif_et_nettoie() {
+        DocumentServiceEndpoint shortIdle = endpointWith(Duration.ofMillis(200));
+        Recorder<UploadDocumentReply> response = new Recorder<>();
+        StreamObserver<UploadDocumentRequest> stream = shortIdle.uploadDocument(response);
+
+        stream.onNext(metadata(caseId, "contrat.pdf"));
+        stream.onNext(chunk(10));
+
+        await().atMost(Duration.ofSeconds(3)).until(() -> response.error != null);
+        assertThat(code(response.error)).isEqualTo(Status.Code.DEADLINE_EXCEEDED);
+
+        // Les messages tardifs sont ignorés : toujours une seule réponse terminale.
+        stream.onNext(chunk(10));
+        stream.onCompleted();
+        assertThat(response.terminals.get()).isEqualTo(1);
+        assertThat(repository.documents).isEmpty();
+        assertThat(storage.files).isEmpty();
+    }
+
+    @Test
+    void ne_coupe_pas_un_import_qui_continue_d_envoyer_des_donnees() throws InterruptedException {
+        DocumentServiceEndpoint oneSecondIdle = endpointWith(Duration.ofSeconds(1));
+        Recorder<UploadDocumentReply> response = new Recorder<>();
+        StreamObserver<UploadDocumentRequest> stream = oneSecondIdle.uploadDocument(response);
+
+        stream.onNext(metadata(caseId, "lent.pdf"));
+        for (int i = 0; i < 3; i++) {
+            Thread.sleep(400); // total 1,2 s > 1 s, mais jamais 1 s sans message
+            stream.onNext(chunk(10));
+        }
+        stream.onCompleted();
+
+        assertThat(response.error).isNull();
+        assertThat(response.completed).isTrue();
+        assertThat(repository.documents).hasSize(1);
     }
 
     @Test

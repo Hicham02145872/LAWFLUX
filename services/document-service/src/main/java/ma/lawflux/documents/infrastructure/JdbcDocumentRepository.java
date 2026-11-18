@@ -8,8 +8,10 @@ import ma.lawflux.documents.domain.DocumentRepository;
 import ma.lawflux.documents.domain.DocumentType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 @Repository
+@ConditionalOnProperty(prefix = "lawflux.documents", name = "business-enabled", havingValue = "true")
 class JdbcDocumentRepository implements DocumentRepository {
 
     private final JdbcClient jdbc;
