@@ -1,0 +1,75 @@
+.doc-upload {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    margin: 16px 0 24px;
+    border: 1px dashed #b6bfd0;
+    border-radius: 10px;
+    background: #f8f9fc;
+  }
+  
+  .doc-upload label {
+    font-weight: 600;
+  }
+  
+  .doc-upload progress {
+    flex-basis: 100%;
+    width: 100%;
+    height: 8px;
+  }
+  
+  .doc-error {
+    flex-basis: 100%;
+    margin: 0;
+    color: #b42318;
+    font-size: 0.95rem;
+  }
+  
+  .doc-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .doc-table th,
+  .doc-table td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid #e4e7ee;
+  }
+  
+  .doc-table th {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #5b6478;
+  }
+  
+  .doc-table tbody tr:hover {
+    background: #f3f5fa;
+  }
+  
+  .doc-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  
+  .doc-badge--pdf {
+    background: #fde8e8;
+    color: #9b1c1c;
+  }
+  
+  .doc-badge--docx {
+    background: #e1ecff;
+    color: #1e429f;
+  }
+  
+  .doc-state {
+    padding: 24px;
+    text-align: center;
+    color: #5b6478;
+  }

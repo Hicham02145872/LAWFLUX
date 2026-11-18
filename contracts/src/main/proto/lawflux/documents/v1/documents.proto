@@ -1,9 +1,42 @@
+
 syntax = "proto3";
 package lawflux.documents.v1;
 option java_package = "ma.lawflux.contracts.documents.v1";
 option java_multiple_files = true;
 
 // Contrat initial : opérations métier non implémentées dans ce scaffolding.
-service DocumentService { rpc GetDocument (GetDocumentRequest) returns (DocumentReply); }
+service DocumentService {
+  rpc GetDocument (GetDocumentRequest) returns (DocumentReply);
+  rpc ListDocuments (ListDocumentsRequest) returns (ListDocumentsReply);
+  // Client streaming : 1er message = métadonnées, suivants = morceaux de 256 Ko.
+  rpc UploadDocument (stream UploadDocumentRequest) returns (UploadDocumentReply);
+}
+
 message GetDocumentRequest { string document_id = 1; }
 message DocumentReply { string id = 1; string case_id = 2; string filename = 3; int32 version = 4; }
+
+message ListDocumentsRequest { string case_id = 1; }
+
+message DocumentSummary {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string author = 4;
+  string created_at = 5;
+}
+
+message ListDocumentsReply { repeated DocumentSummary documents = 1; }
+
+message UploadMetadata {
+  string case_id = 1;
+  string file_name = 2;
+}
+
+message UploadDocumentRequest {
+  oneof payload {
+    UploadMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message UploadDocumentReply { DocumentSummary document = 1; }

@@ -1,9 +1,11 @@
+import { DocumentListPage } from './documents/DocumentListPage'
+import { VersionListPage } from './versions/VersionListPage'
 import type { RouteObject } from 'react-router'
 import { PendingPage } from '../../shared/Page'
 
 const pages = [
-  ['dossiers/:id/documents', 'Documents du dossier'],
-  ['documents/:id/versions', 'Versions du document'],
+  /*['dossiers/:id/documents', 'Documents du dossier'],*/
+  /*['documents/:id/versions', 'Versions du document'],*/
   ['documents/:id/partage', 'Partage du document'],
   ['documents/:id/commentaires', 'Commentaires du document'],
   ['documents/:id/risques', 'Risques du document'],
@@ -16,6 +18,15 @@ const pages = [
   ['factures/:id', 'Détail de la facture'],
 ] as const
 
-export const documentRoutes: RouteObject[] = pages.map(([path, title]) => ({
+/*export const documentRoutes: RouteObject[] = pages.map(([path, title]) => ({
   path, element: <PendingPage title={title} />,
-}))
+}))*/
+export const documentRoutes: RouteObject[] = [
+  { path: 'dossiers/:id/documents', element: <DocumentListPage /> },
+  { path: 'documents/:id/versions', element: <VersionListPage /> },
+  ...pages.map(([path, title]) => ({
+    path, element: <PendingPage title={title} />,
+  })),
+]
+
+
