@@ -18,6 +18,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 
 @Testcontainers(disabledWithoutDocker = true)
 class JdbcDocumentRepositoryTest {
@@ -38,7 +39,7 @@ class JdbcDocumentRepositoryTest {
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate();
         jdbc = JdbcClient.create(ds);
-        repository = new JdbcDocumentRepository(jdbc);
+        repository = new JdbcDocumentRepository(jdbc, new DataSourceTransactionManager(ds));
     }
 
     @BeforeEach
