@@ -1,37 +1,35 @@
 package ma.lawflux.documents.api.grpc;
 
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
-import java.io.Closeable;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import ma.lawflux.contracts.documents.v1.AddVersionMetadata;
+import ma.lawflux.contracts.documents.v1.AddVersionReply;
+import ma.lawflux.contracts.documents.v1.AddVersionRequest;
 import ma.lawflux.contracts.documents.v1.DocumentServiceGrpc;
 import ma.lawflux.contracts.documents.v1.DocumentSummary;
 import ma.lawflux.contracts.documents.v1.ListDocumentsReply;
 import ma.lawflux.contracts.documents.v1.ListDocumentsRequest;
+import ma.lawflux.contracts.documents.v1.ListVersionsReply;
+import ma.lawflux.contracts.documents.v1.ListVersionsRequest;
 import ma.lawflux.contracts.documents.v1.UploadDocumentReply;
 import ma.lawflux.contracts.documents.v1.UploadDocumentRequest;
 import ma.lawflux.contracts.documents.v1.UploadMetadata;
+import ma.lawflux.contracts.documents.v1.VersionSummary;
+import ma.lawflux.documents.application.AddVersionCommand;
+import ma.lawflux.documents.application.AddVersionUseCase;
 import ma.lawflux.documents.application.CallerContext;
 import ma.lawflux.documents.application.CallerContextProvider;
 import ma.lawflux.documents.application.ListDocumentsUseCase;
+import ma.lawflux.documents.application.ListVersionsUseCase;
 import ma.lawflux.documents.application.UploadCommand;
 import ma.lawflux.documents.application.UploadDocumentUseCase;
-import ma.lawflux.documents.domain.CaseAccessDeniedException;
 import ma.lawflux.documents.domain.Document;
-import ma.lawflux.documents.domain.InvalidDocumentException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import ma.lawflux.documents.domain.DocumentVersion;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -43,10 +41,10 @@ import org.springframework.util.unit.DataSize;
 public class DocumentServiceEndpoint extends DocumentServiceGrpc.DocumentServiceImplBase
         implements DisposableBean {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DocumentServiceEndpoint.class);
-
     private final ListDocumentsUseCase listUseCase;
     private final UploadDocumentUseCase uploadUseCase;
+    private final ListVersionsUseCase listVersionsUseCase;
+    private final AddVersionUseCase addVersionUseCase;
     private final CallerContextProvider callerContext;
     private final DataSize maxFileSize;
     private final Duration idleTimeout;
@@ -59,6 +57,8 @@ public class DocumentServiceEndpoint extends DocumentServiceGrpc.DocumentService
     public DocumentServiceEndpoint(
             ListDocumentsUseCase listUseCase,
             UploadDocumentUseCase uploadUseCase,
+            ListVersionsUseCase listVersionsUseCase,
+            AddVersionUseCase addVersionUseCase,
             CallerContextProvider callerContext,
             @Value("${lawflux.documents.max-file-size}") DataSize maxFileSize,
             @Value("${lawflux.documents.upload-idle-timeout:30s}") Duration idleTimeout) {
@@ -67,6 +67,8 @@ public class DocumentServiceEndpoint extends DocumentServiceGrpc.DocumentService
         }
         this.listUseCase = listUseCase;
         this.uploadUseCase = uploadUseCase;
+        this.listVersionsUseCase = listVersionsUseCase;
+        this.addVersionUseCase = addVersionUseCase;
         this.callerContext = callerContext;
         this.maxFileSize = maxFileSize;
         this.idleTimeout = idleTimeout;
@@ -82,181 +84,113 @@ public class DocumentServiceEndpoint extends DocumentServiceGrpc.DocumentService
                               StreamObserver<ListDocumentsReply> responseObserver) {
         try {
             CallerContext caller = callerContext.current();
-            UUID caseId = parseUuid(request.getCaseId());
+            UUID caseId = GrpcErrors.parseUuid(request.getCaseId(), "Identifiant de dossier invalide");
             ListDocumentsReply.Builder reply = ListDocumentsReply.newBuilder();
             listUseCase.execute(caller.cabinetId(), caseId).forEach(d -> reply.addDocuments(toSummary(d)));
             responseObserver.onNext(reply.build());
             responseObserver.onCompleted();
         } catch (RuntimeException e) {
-            responseObserver.onError(toStatus(e).asRuntimeException());
+            responseObserver.onError(GrpcErrors.toStatus(e).asRuntimeException());
+        }
+    }
+
+    @Override
+    public void listVersions(ListVersionsRequest request,
+                             StreamObserver<ListVersionsReply> responseObserver) {
+        try {
+            CallerContext caller = callerContext.current();
+            UUID documentId = GrpcErrors.parseUuid(request.getDocumentId(), "Identifiant de document invalide");
+            ListVersionsReply.Builder reply = ListVersionsReply.newBuilder();
+            listVersionsUseCase.execute(caller.cabinetId(), documentId)
+                    .forEach(v -> reply.addVersions(toSummary(v)));
+            responseObserver.onNext(reply.build());
+            responseObserver.onCompleted();
+        } catch (RuntimeException e) {
+            responseObserver.onError(GrpcErrors.toStatus(e).asRuntimeException());
         }
     }
 
     @Override
     public StreamObserver<UploadDocumentRequest> uploadDocument(
             StreamObserver<UploadDocumentReply> responseObserver) {
-        CallerContext caller;
-        try {
-            caller = callerContext.current();
-        } catch (RuntimeException e) {
-            responseObserver.onError(toStatus(e).asRuntimeException());
-            return new StreamObserver<>() {
-                @Override public void onNext(UploadDocumentRequest value) { }
-                @Override public void onError(Throwable t) { }
-                @Override public void onCompleted() { }
-            };
+        CallerContext caller = authenticate(responseObserver);
+        if (caller == null) {
+            return ignoring();
         }
-        return new UploadStream(caller, responseObserver);
-    }
+        return new ChunkedUpload<UploadDocumentRequest, UploadDocumentReply, UploadMetadata>(
+                responseObserver, watchdog, idleTimeout, maxFileSize.toBytes()) {
 
-    /**
-     * Les méthodes sont synchronisées : le chien de garde (idle timeout) s'exécute
-     * sur un autre thread que les callbacks gRPC.
-     */
-    private final class UploadStream implements StreamObserver<UploadDocumentRequest> {
-
-        private final CallerContext caller;
-        private final StreamObserver<UploadDocumentReply> response;
-        private UploadMetadata metadata;
-        private Path tempFile;
-        private OutputStream out;
-        private long received;
-        private boolean finished;
-        private ScheduledFuture<?> idleTask;
-
-        UploadStream(CallerContext caller, StreamObserver<UploadDocumentReply> response) {
-            this.caller = caller;
-            this.response = response;
-            armIdleTimer();
-        }
-
-        private synchronized void armIdleTimer() {
-            if (idleTask != null) {
-                idleTask.cancel(false);
+            @Override
+            protected UploadMetadata metadataOf(UploadDocumentRequest message) {
+                return message.getPayloadCase() == UploadDocumentRequest.PayloadCase.METADATA
+                        ? message.getMetadata() : null;
             }
-            idleTask = watchdog.schedule(this::expire, idleTimeout.toMillis(), TimeUnit.MILLISECONDS);
-        }
 
-        private synchronized void expire() {
-            if (finished) return;
-            LOG.warn("Import interrompu : délai d'inactivité dépassé");
-            finished = true;
-            cleanup();
-            response.onError(Status.DEADLINE_EXCEEDED
-                    .withDescription("Délai d'inactivité dépassé").asRuntimeException());
-        }
-
-        @Override
-        public synchronized void onNext(UploadDocumentRequest message) {
-            if (finished) return;
-            armIdleTimer();
-            try {
-                switch (message.getPayloadCase()) {
-                    case METADATA -> start(message.getMetadata());
-                    case CHUNK -> append(message);
-                    default -> throw new InvalidDocumentException("Message d'import vide");
-                }
-            } catch (IOException | RuntimeException e) {
-                fail(e);
+            @Override
+            protected ByteString chunkOf(UploadDocumentRequest message) {
+                return message.getPayloadCase() == UploadDocumentRequest.PayloadCase.CHUNK
+                        ? message.getChunk() : null;
             }
-        }
 
-        private void start(UploadMetadata meta) throws IOException {
-            if (metadata != null) {
-                throw new InvalidDocumentException("Métadonnées déjà reçues");
-            }
-            metadata = meta;
-            tempFile = Files.createTempFile("lawflux-upload-", ".part");
-            out = Files.newOutputStream(tempFile);
-        }
-
-        private void append(UploadDocumentRequest message) throws IOException {
-            if (metadata == null) {
-                throw new InvalidDocumentException("Les métadonnées doivent arriver en premier");
-            }
-            received += message.getChunk().size();
-            if (received > maxFileSize.toBytes()) {
-                throw new InvalidDocumentException("Fichier trop volumineux");
-            }
-            message.getChunk().writeTo(out);
-        }
-
-        @Override
-        public synchronized void onError(Throwable t) {
-            finished = true;
-            cleanup();
-        }
-
-        @Override
-        public synchronized void onCompleted() {
-            if (finished) return;
-            finished = true;
-
-            Document saved = null;
-            Throwable failure = null;
-            InputStream content = null;
-            try {
-                if (metadata == null) {
-                    throw new InvalidDocumentException("Aucun fichier reçu");
-                }
-                out.close();
-                UUID caseId = parseUuid(metadata.getCaseId());
-                content = Files.newInputStream(tempFile);
-                saved = uploadUseCase.execute(new UploadCommand(
+            @Override
+            protected UploadDocumentReply complete(UploadMetadata meta, InputStream content, long size) {
+                UUID caseId = GrpcErrors.parseUuid(meta.getCaseId(), "Identifiant de dossier invalide");
+                Document saved = uploadUseCase.execute(new UploadCommand(
                         caller.cabinetId(), caseId, caller.userId(), caller.authorName(),
-                        metadata.getFileName(), received, content));
-            } catch (IOException | RuntimeException e) {
-                failure = e;
-            } finally {
-                // Un échec de fermeture après persistance ne change pas le résultat.
-                closeQuietly(content);
-                cleanup();
+                        meta.getFileName(), size, content));
+                return UploadDocumentReply.newBuilder().setDocument(toSummary(saved)).build();
             }
+        };
+    }
 
-            // Une seule réponse terminale, émise après le nettoyage.
-            if (failure == null) {
-                response.onNext(UploadDocumentReply.newBuilder().setDocument(toSummary(saved)).build());
-                response.onCompleted();
-            } else {
-                response.onError(toStatus(failure).asRuntimeException());
-            }
+    @Override
+    public StreamObserver<AddVersionRequest> addVersion(StreamObserver<AddVersionReply> responseObserver) {
+        CallerContext caller = authenticate(responseObserver);
+        if (caller == null) {
+            return ignoring();
         }
+        return new ChunkedUpload<AddVersionRequest, AddVersionReply, AddVersionMetadata>(
+                responseObserver, watchdog, idleTimeout, maxFileSize.toBytes()) {
 
-        private void fail(Throwable e) {
-            if (finished) return;
-            finished = true;
-            cleanup();
-            response.onError(toStatus(e).asRuntimeException());
-        }
+            @Override
+            protected AddVersionMetadata metadataOf(AddVersionRequest message) {
+                return message.getPayloadCase() == AddVersionRequest.PayloadCase.METADATA
+                        ? message.getMetadata() : null;
+            }
 
-        private void cleanup() {
-            if (idleTask != null) {
-                idleTask.cancel(false);
+            @Override
+            protected ByteString chunkOf(AddVersionRequest message) {
+                return message.getPayloadCase() == AddVersionRequest.PayloadCase.CHUNK
+                        ? message.getChunk() : null;
             }
-            closeQuietly(out);
-            try {
-                if (tempFile != null) Files.deleteIfExists(tempFile);
-            } catch (IOException e) {
-                LOG.warn("Suppression du fichier temporaire impossible : {}", tempFile, e);
+
+            @Override
+            protected AddVersionReply complete(AddVersionMetadata meta, InputStream content, long size) {
+                UUID documentId = GrpcErrors.parseUuid(meta.getDocumentId(), "Identifiant de document invalide");
+                DocumentVersion created = addVersionUseCase.execute(new AddVersionCommand(
+                        caller.cabinetId(), documentId, caller.userId(), caller.authorName(),
+                        meta.getFileName(), size, content));
+                return AddVersionReply.newBuilder().setVersion(toSummary(created)).build();
             }
+        };
+    }
+
+    /** Renvoie l'appelant, ou null après avoir terminé l'appel en erreur. */
+    private <R> CallerContext authenticate(StreamObserver<R> response) {
+        try {
+            return callerContext.current();
+        } catch (RuntimeException e) {
+            response.onError(GrpcErrors.toStatus(e).asRuntimeException());
+            return null;
         }
     }
 
-    private static void closeQuietly(Closeable closeable) {
-        if (closeable == null) return;
-        try {
-            closeable.close();
-        } catch (IOException e) {
-            LOG.warn("Fermeture d'une ressource d'import en échec", e);
-        }
-    }
-
-    private static UUID parseUuid(String value) {
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException e) {
-            throw new InvalidDocumentException("Identifiant de dossier invalide");
-        }
+    private static <T> StreamObserver<T> ignoring() {
+        return new StreamObserver<>() {
+            @Override public void onNext(T value) { }
+            @Override public void onError(Throwable t) { }
+            @Override public void onCompleted() { }
+        };
     }
 
     private static DocumentSummary toSummary(Document d) {
@@ -269,18 +203,13 @@ public class DocumentServiceEndpoint extends DocumentServiceGrpc.DocumentService
                 .build();
     }
 
-    private static Status toStatus(Throwable e) {
-        if (e instanceof StatusRuntimeException s) {
-            return s.getStatus();
-        }
-        if (e instanceof InvalidDocumentException) {
-            return Status.INVALID_ARGUMENT.withDescription(e.getMessage());
-        }
-        if (e instanceof CaseAccessDeniedException) {
-            // Même réponse que le dossier existe ou non, pour ne rien révéler.
-            return Status.PERMISSION_DENIED.withDescription("Accès au dossier refusé");
-        }
-        LOG.error("Erreur interne document-service", e);
-        return Status.INTERNAL.withDescription("Erreur interne");
+    private static VersionSummary toSummary(DocumentVersion v) {
+        return VersionSummary.newBuilder()
+                .setNumber(v.number())
+                .setAuthor(v.authorName())
+                .setCreatedAt(v.createdAt().toString())
+                .setType(v.type().name())
+                .setSizeBytes(v.sizeBytes())
+                .build();
     }
 }

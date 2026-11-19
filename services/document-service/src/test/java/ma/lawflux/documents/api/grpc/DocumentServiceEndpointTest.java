@@ -29,6 +29,10 @@ import ma.lawflux.documents.support.InMemoryDocumentStorage;
 import org.junit.jupiter.api.Test;
 import org.springframework.util.unit.DataSize;
 
+import ma.lawflux.documents.application.AddVersionUseCase;
+import ma.lawflux.documents.application.ListVersionsUseCase;
+import ma.lawflux.documents.support.InMemoryDocumentVersionRepository;
+
 class DocumentServiceEndpointTest {
 
     private final UUID cabinetId = UUID.randomUUID();
@@ -39,20 +43,24 @@ class DocumentServiceEndpointTest {
 
     private final InMemoryDocumentRepository repository = new InMemoryDocumentRepository();
     private final InMemoryDocumentStorage storage = new InMemoryDocumentStorage();
+
+    private final InMemoryDocumentVersionRepository versions = new InMemoryDocumentVersionRepository();
     private final DataSize maxSize = DataSize.ofBytes(100);
     private final CaseAccessChecker caseAccess =
             (cabinet, caze) -> cabinet.equals(cabinetId) && caze.equals(caseId);
 
     private final DocumentServiceEndpoint endpoint = endpointWith(Duration.ofSeconds(30));
 
-    private DocumentServiceEndpoint endpointWith(Duration idleTimeout) {
-        return new DocumentServiceEndpoint(
-                new ListDocumentsUseCase(repository),
-                new UploadDocumentUseCase(repository, storage, caseAccess, maxSize),
-                () -> new CallerContext(userId, cabinetId, "Karim"),
-                maxSize,
-                idleTimeout);
-    }
+  private DocumentServiceEndpoint endpointWith(Duration idleTimeout) {
+    return new DocumentServiceEndpoint(
+            new ListDocumentsUseCase(repository),
+            new UploadDocumentUseCase(repository, storage, caseAccess, maxSize),
+            new ListVersionsUseCase(versions),
+            new AddVersionUseCase(versions, storage, maxSize),
+            () -> new CallerContext(userId, cabinetId, "Karim"),
+            maxSize,
+            idleTimeout);
+}
 
     private static class Recorder<T> implements StreamObserver<T> {
         final List<T> values = new CopyOnWriteArrayList<>();
