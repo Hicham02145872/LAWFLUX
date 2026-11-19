@@ -4,6 +4,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.util.UUID;
 import ma.lawflux.documents.domain.CaseAccessDeniedException;
+import ma.lawflux.documents.domain.DocumentAccessDeniedException;
 import ma.lawflux.documents.domain.DocumentNotFoundException;
 import ma.lawflux.documents.domain.InvalidDocumentException;
 import org.slf4j.Logger;
@@ -27,8 +28,11 @@ final class GrpcErrors {
             // Même réponse que le dossier existe ou non, pour ne rien révéler.
             return Status.PERMISSION_DENIED.withDescription("Accès au dossier refusé");
         }
+        if (e instanceof DocumentAccessDeniedException) {
+            return Status.PERMISSION_DENIED.withDescription("Action non autorisée");
+        }
         if (e instanceof DocumentNotFoundException) {
-            // Document inexistant ou d'un autre cabinet : même réponse dans les deux cas.
+            // Document inexistant, d'un autre cabinet ou sans droit : même réponse dans tous les cas.
             return Status.NOT_FOUND.withDescription("Document introuvable");
         }
         LOG.error("Erreur interne document-service", e);

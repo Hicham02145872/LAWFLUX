@@ -32,6 +32,7 @@ import ma.lawflux.documents.support.InMemoryDocumentVersionRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.convert.ApplicationConversionService;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import ma.lawflux.documents.api.grpc.DocumentSharingEndpoint;
 
 class BusinessWiringTest {
 
@@ -49,7 +50,8 @@ class BusinessWiringTest {
                     GetSharingUseCase.class,
                     ShareDocumentUseCase.class,
                     UnshareDocumentUseCase.class,
-                    DownloadDocumentUseCase.class);
+                    DownloadDocumentUseCase.class,
+                    DocumentSharingEndpoint.class);
 
     @Test
     void configuration_par_defaut_demarre_sans_endpoint_metier_ni_beans_manquants() {
@@ -65,6 +67,7 @@ class BusinessWiringTest {
             assertThat(context).doesNotHaveBean(ShareDocumentUseCase.class);
             assertThat(context).doesNotHaveBean(UnshareDocumentUseCase.class);
             assertThat(context).doesNotHaveBean(DownloadDocumentUseCase.class);
+            assertThat(context).doesNotHaveBean(DocumentSharingEndpoint.class);
         });
     }
 
@@ -90,6 +93,7 @@ class BusinessWiringTest {
                     assertThat(context).hasSingleBean(ShareDocumentUseCase.class);
                     assertThat(context).hasSingleBean(UnshareDocumentUseCase.class);
                     assertThat(context).hasSingleBean(DownloadDocumentUseCase.class);
+                    assertThat(context).hasSingleBean(DocumentSharingEndpoint.class);
                 });
     }
 }
