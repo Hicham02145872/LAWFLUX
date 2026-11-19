@@ -25,3 +25,5 @@ lawflux:
     max-file-size: 20MB
     business-enabled: ${DOCUMENTS_BUSINESS_ENABLED:false}
     upload-idle-timeout: ${DOCUMENT_UPLOAD_IDLE_TIMEOUT:30s}
+
+        download-idle-timeout: ${DOCUMENT_DOWNLOAD_IDLE_TIMEOUT:30s}
