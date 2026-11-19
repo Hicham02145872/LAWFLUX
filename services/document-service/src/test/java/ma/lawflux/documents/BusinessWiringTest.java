@@ -2,6 +2,8 @@ package ma.lawflux.documents;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayInputStream;
+import java.util.EnumSet;
 import java.util.UUID;
 import ma.lawflux.documents.api.grpc.DisabledDocumentServiceEndpoint;
 import ma.lawflux.documents.api.grpc.DocumentServiceEndpoint;
@@ -9,13 +11,22 @@ import ma.lawflux.documents.application.AddVersionUseCase;
 import ma.lawflux.documents.application.CallerContext;
 import ma.lawflux.documents.application.CallerContextProvider;
 import ma.lawflux.documents.application.CaseAccessChecker;
+import ma.lawflux.documents.application.DocumentAccessPolicy;
+import ma.lawflux.documents.application.DocumentContentReader;
 import ma.lawflux.documents.application.DocumentStorage;
+import ma.lawflux.documents.application.DownloadDocumentUseCase;
+import ma.lawflux.documents.application.GetSharingUseCase;
 import ma.lawflux.documents.application.ListDocumentsUseCase;
 import ma.lawflux.documents.application.ListVersionsUseCase;
+import ma.lawflux.documents.application.ShareDocumentUseCase;
+import ma.lawflux.documents.application.UnshareDocumentUseCase;
 import ma.lawflux.documents.application.UploadDocumentUseCase;
+import ma.lawflux.documents.domain.DocumentAction;
 import ma.lawflux.documents.domain.DocumentRepository;
+import ma.lawflux.documents.domain.DocumentShareRepository;
 import ma.lawflux.documents.domain.DocumentVersionRepository;
 import ma.lawflux.documents.support.InMemoryDocumentRepository;
+import ma.lawflux.documents.support.InMemoryDocumentShareRepository;
 import ma.lawflux.documents.support.InMemoryDocumentStorage;
 import ma.lawflux.documents.support.InMemoryDocumentVersionRepository;
 import org.junit.jupiter.api.Test;
@@ -34,7 +45,11 @@ class BusinessWiringTest {
                     UploadDocumentUseCase.class,
                     ListDocumentsUseCase.class,
                     AddVersionUseCase.class,
-                    ListVersionsUseCase.class);
+                    ListVersionsUseCase.class,
+                    GetSharingUseCase.class,
+                    ShareDocumentUseCase.class,
+                    UnshareDocumentUseCase.class,
+                    DownloadDocumentUseCase.class);
 
     @Test
     void configuration_par_defaut_demarre_sans_endpoint_metier_ni_beans_manquants() {
@@ -46,6 +61,10 @@ class BusinessWiringTest {
             assertThat(context).doesNotHaveBean(ListDocumentsUseCase.class);
             assertThat(context).doesNotHaveBean(AddVersionUseCase.class);
             assertThat(context).doesNotHaveBean(ListVersionsUseCase.class);
+            assertThat(context).doesNotHaveBean(GetSharingUseCase.class);
+            assertThat(context).doesNotHaveBean(ShareDocumentUseCase.class);
+            assertThat(context).doesNotHaveBean(UnshareDocumentUseCase.class);
+            assertThat(context).doesNotHaveBean(DownloadDocumentUseCase.class);
         });
     }
 
@@ -54,14 +73,23 @@ class BusinessWiringTest {
         runner.withPropertyValues("lawflux.documents.business-enabled=true")
                 .withBean(DocumentRepository.class, InMemoryDocumentRepository::new)
                 .withBean(DocumentVersionRepository.class, InMemoryDocumentVersionRepository::new)
+                .withBean(DocumentShareRepository.class, InMemoryDocumentShareRepository::new)
                 .withBean(DocumentStorage.class, InMemoryDocumentStorage::new)
                 .withBean(CaseAccessChecker.class, () -> (cabinet, caze) -> true)
+                .withBean(DocumentAccessPolicy.class,
+                        () -> (caller, document, shared) -> EnumSet.of(DocumentAction.DOWNLOAD))
+                .withBean(DocumentContentReader.class,
+                        () -> storageKey -> new ByteArrayInputStream(new byte[0]))
                 .withBean(CallerContextProvider.class,
                         () -> () -> new CallerContext(UUID.randomUUID(), UUID.randomUUID(), "Karim"))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(DocumentServiceEndpoint.class);
                     assertThat(context).doesNotHaveBean(DisabledDocumentServiceEndpoint.class);
+                    assertThat(context).hasSingleBean(GetSharingUseCase.class);
+                    assertThat(context).hasSingleBean(ShareDocumentUseCase.class);
+                    assertThat(context).hasSingleBean(UnshareDocumentUseCase.class);
+                    assertThat(context).hasSingleBean(DownloadDocumentUseCase.class);
                 });
     }
 }
