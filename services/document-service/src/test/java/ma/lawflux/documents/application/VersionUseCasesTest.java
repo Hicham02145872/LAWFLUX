@@ -10,6 +10,10 @@ import ma.lawflux.documents.domain.DocumentVersion;
 import ma.lawflux.documents.domain.InvalidDocumentException;
 import ma.lawflux.documents.support.InMemoryDocumentStorage;
 import ma.lawflux.documents.support.InMemoryDocumentVersionRepository;
+import ma.lawflux.documents.support.InMemoryDocumentShareRepository;
+import ma.lawflux.documents.domain.Document;
+import ma.lawflux.documents.domain.DocumentType;
+import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.util.unit.DataSize;
@@ -21,14 +25,17 @@ class VersionUseCasesTest {
     private final UUID documentId = UUID.randomUUID();
 
     private final InMemoryDocumentVersionRepository versions = new InMemoryDocumentVersionRepository();
+    private final InMemoryDocumentShareRepository shares = new InMemoryDocumentShareRepository();
     private final InMemoryDocumentStorage storage = new InMemoryDocumentStorage();
     private final AddVersionUseCase add =
-            new AddVersionUseCase(versions, storage, DataSize.ofMegabytes(20));
-    private final ListVersionsUseCase list = new ListVersionsUseCase(versions);
+            new AddVersionUseCase(versions, storage, shares, (cabinet, caze) -> true, DataSize.ofMegabytes(20));
+    private final ListVersionsUseCase list = new ListVersionsUseCase(versions, shares, (cabinet, caze) -> true);
 
     @BeforeEach
     void setUp() {
         versions.registerDocument(cabinetId, documentId);
+        shares.register(new Document(documentId, cabinetId, UUID.randomUUID(), "contrat.pdf",
+                DocumentType.PDF, 10, "initial", UUID.randomUUID(), "Sara", Instant.now()));
     }
 
     private AddVersionCommand command(UUID cabinet, String fileName, long size) {

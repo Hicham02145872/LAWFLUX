@@ -32,6 +32,7 @@ import org.springframework.util.unit.DataSize;
 import ma.lawflux.documents.application.AddVersionUseCase;
 import ma.lawflux.documents.application.ListVersionsUseCase;
 import ma.lawflux.documents.support.InMemoryDocumentVersionRepository;
+import ma.lawflux.documents.support.InMemoryDocumentShareRepository;
 
 class DocumentServiceEndpointTest {
 
@@ -45,6 +46,7 @@ class DocumentServiceEndpointTest {
     private final InMemoryDocumentStorage storage = new InMemoryDocumentStorage();
 
     private final InMemoryDocumentVersionRepository versions = new InMemoryDocumentVersionRepository();
+    private final InMemoryDocumentShareRepository shares = new InMemoryDocumentShareRepository();
     private final DataSize maxSize = DataSize.ofBytes(100);
     private final CaseAccessChecker caseAccess =
             (cabinet, caze) -> cabinet.equals(cabinetId) && caze.equals(caseId);
@@ -53,10 +55,10 @@ class DocumentServiceEndpointTest {
 
   private DocumentServiceEndpoint endpointWith(Duration idleTimeout) {
     return new DocumentServiceEndpoint(
-            new ListDocumentsUseCase(repository),
+            new ListDocumentsUseCase(repository, caseAccess),
             new UploadDocumentUseCase(repository, storage, caseAccess, maxSize),
-            new ListVersionsUseCase(versions),
-            new AddVersionUseCase(versions, storage, maxSize),
+            new ListVersionsUseCase(versions, shares, caseAccess),
+            new AddVersionUseCase(versions, storage, shares, caseAccess, maxSize),
             () -> new CallerContext(userId, cabinetId, "Karim"),
             maxSize,
             idleTimeout);

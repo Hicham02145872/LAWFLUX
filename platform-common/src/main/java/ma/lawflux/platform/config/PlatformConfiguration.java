@@ -18,7 +18,10 @@ public class PlatformConfiguration {
 
     @Bean
     @GlobalServerInterceptor
-    ScaffoldGrpcBoundary scaffoldGrpcBoundary() { return new ScaffoldGrpcBoundary(); }
+    ScaffoldGrpcBoundary scaffoldGrpcBoundary(
+            @Value("${lawflux.documents.business-enabled:false}") boolean documentsEnabled) {
+        return new ScaffoldGrpcBoundary(documentsEnabled);
+    }
 
     @Bean
     SecurityFilterChain scaffoldSecurity(HttpSecurity http,

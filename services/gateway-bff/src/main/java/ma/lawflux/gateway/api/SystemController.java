@@ -26,7 +26,7 @@ public class SystemController {
         headers.put(ScaffoldGrpcBoundary.CORRELATION, CorrelationFilter.normalize(MDC.get("correlationId")));
         try {
             var reply = client.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers))
-                    .withDeadlineAfter(1500, TimeUnit.MILLISECONDS).ping(ProbeRequest.getDefaultInstance());
+                    .withDeadlineAfter(5, TimeUnit.SECONDS).ping(ProbeRequest.getDefaultInstance());
             return new ProbeView(reply.getService(), reply.getState(), reply.getCorrelationId());
         } catch (StatusRuntimeException e) {
             HttpStatus status = e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED ? HttpStatus.GATEWAY_TIMEOUT : HttpStatus.SERVICE_UNAVAILABLE;

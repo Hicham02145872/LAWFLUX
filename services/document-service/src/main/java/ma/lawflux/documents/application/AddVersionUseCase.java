@@ -6,6 +6,8 @@ import ma.lawflux.documents.domain.DocumentType;
 import ma.lawflux.documents.domain.DocumentVersion;
 import ma.lawflux.documents.domain.DocumentVersionRepository;
 import ma.lawflux.documents.domain.NewVersion;
+import ma.lawflux.documents.domain.DocumentShareRepository;
+import ma.lawflux.documents.domain.CaseAccessDeniedException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -17,14 +19,20 @@ public class AddVersionUseCase {
 
     private final DocumentVersionRepository versions;
     private final DocumentStorage storage;
+    private final DocumentShareRepository documents;
+    private final CaseAccessChecker caseAccess;
     private final DataSize maxFileSize;
 
     public AddVersionUseCase(
             DocumentVersionRepository versions,
             DocumentStorage storage,
+            DocumentShareRepository documents,
+            CaseAccessChecker caseAccess,
             @Value("${lawflux.documents.max-file-size}") DataSize maxFileSize) {
         this.versions = versions;
         this.storage = storage;
+        this.documents = documents;
+        this.caseAccess = caseAccess;
         this.maxFileSize = maxFileSize;
     }
 
@@ -34,9 +42,10 @@ public class AddVersionUseCase {
         DocumentType type = FileRules.typeOf(name);
 
         // Rien n'est écrit si le document n'existe pas dans le cabinet de l'appelant.
-        if (!versions.documentExists(cmd.cabinetId(), cmd.documentId())) {
-            throw new DocumentNotFoundException("Document introuvable");
-        }
+        var document = documents.findDocument(cmd.cabinetId(), cmd.documentId())
+                .orElseThrow(() -> new DocumentNotFoundException("Document introuvable"));
+        if (!caseAccess.canAccess(cmd.cabinetId(), document.caseId()))
+            throw new CaseAccessDeniedException("Accès au dossier refusé");
 
         String storageKey = storage.store(cmd.cabinetId(), name, cmd.content(), cmd.sizeBytes());
         try {

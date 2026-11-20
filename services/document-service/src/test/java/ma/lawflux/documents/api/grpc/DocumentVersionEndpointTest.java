@@ -25,6 +25,10 @@ import ma.lawflux.documents.application.UploadDocumentUseCase;
 import ma.lawflux.documents.support.InMemoryDocumentRepository;
 import ma.lawflux.documents.support.InMemoryDocumentStorage;
 import ma.lawflux.documents.support.InMemoryDocumentVersionRepository;
+import ma.lawflux.documents.support.InMemoryDocumentShareRepository;
+import ma.lawflux.documents.domain.Document;
+import ma.lawflux.documents.domain.DocumentType;
+import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.util.unit.DataSize;
@@ -39,14 +43,15 @@ class DocumentVersionEndpointTest {
     private final InMemoryDocumentRepository documents = new InMemoryDocumentRepository();
     private final InMemoryDocumentStorage storage = new InMemoryDocumentStorage();
     private final InMemoryDocumentVersionRepository versions = new InMemoryDocumentVersionRepository();
+    private final InMemoryDocumentShareRepository shares = new InMemoryDocumentShareRepository();
     private final DataSize maxSize = DataSize.ofBytes(100);
 
     private DocumentServiceEndpoint endpointWith(UUID callerCabinet, Duration idleTimeout) {
         return new DocumentServiceEndpoint(
-                new ListDocumentsUseCase(documents),
+                new ListDocumentsUseCase(documents, (cabinet, caze) -> true),
                 new UploadDocumentUseCase(documents, storage, (cabinet, caze) -> true, maxSize),
-                new ListVersionsUseCase(versions),
-                new AddVersionUseCase(versions, storage, maxSize),
+                new ListVersionsUseCase(versions, shares, (cabinet, caze) -> true),
+                new AddVersionUseCase(versions, storage, shares, (cabinet, caze) -> true, maxSize),
                 () -> new CallerContext(userId, callerCabinet, "Sara"),
                 maxSize,
                 idleTimeout);
@@ -57,6 +62,8 @@ class DocumentVersionEndpointTest {
     @BeforeEach
     void setUp() {
         versions.registerDocument(cabinetId, documentId);
+        shares.register(new Document(documentId, cabinetId, UUID.randomUUID(), "contrat.pdf",
+                DocumentType.PDF, 10, "initial", userId, "Sara", Instant.now()));
     }
 
     private static class Recorder<T> implements StreamObserver<T> {
