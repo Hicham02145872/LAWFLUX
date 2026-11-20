@@ -1,0 +1,6 @@
+# Three replicas, no host port collision: only the BFF is published.
+# docker compose -f compose.yaml -f compose.load-balancing.yaml --profile apps up -d --build
+services:
+  case-service:
+    deploy:
+      replicas: 3

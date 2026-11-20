@@ -31,6 +31,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+  keycloak:
+    profiles: ["apps"]
+    image: quay.io/keycloak/keycloak:26.4.7
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Mot de passe Keycloak requis}
+      KC_HOSTNAME: http://localhost:8180
+    ports: ["127.0.0.1:8180:8080"]
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./infra/keycloak/lawflux-realm.json:/opt/keycloak/data/import/lawflux-realm.json:ro
   gateway-bff:
     profiles: ["apps"]
     build:
@@ -40,10 +52,12 @@ services:
         SERVICE: gateway-bff
     environment:
       HTTP_ADDRESS: 0.0.0.0
-      IDENTITY_GRPC_ADDRESS: identity-service:9091
-      CASES_GRPC_ADDRESS: case-service:9092
-      DOCUMENTS_GRPC_ADDRESS: document-service:9093
-      BILLING_GRPC_ADDRESS: billing-service:9094
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/lawflux
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/lawflux/protocol/openid-connect/certs
+      IDENTITY_GRPC_ADDRESS: load-balancer:9101
+      CASES_GRPC_ADDRESS: load-balancer:9102
+      DOCUMENTS_GRPC_ADDRESS: load-balancer:9103
+      BILLING_GRPC_ADDRESS: load-balancer:9104
       SCAFFOLD_EVENTS_ENABLED: ${SCAFFOLD_EVENTS_ENABLED:-false}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: ${RABBITMQ_USER:-lawflux}
@@ -52,6 +66,10 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      load-balancer:
+        condition: service_started
+      keycloak:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/actuator/health/readiness | grep -q UP"]
       interval: 10s
@@ -66,11 +84,14 @@ services:
       args:
         SERVICE: identity-service
     environment:
+      SERVICE_9091_NAME: lawflux-identity
+      SERVICE_8081_IGNORE: "true"
       HTTP_ADDRESS: 0.0.0.0
       GRPC_HOST: 0.0.0.0
       DB_URL: jdbc:postgresql://postgres:5432/lawflux_identity
       DB_USER: lawflux_identity
       DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?Mot de passe requis}
+    expose: ["9091"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -88,11 +109,14 @@ services:
       args:
         SERVICE: case-service
     environment:
+      SERVICE_9092_NAME: lawflux-cases
+      SERVICE_8082_IGNORE: "true"
       HTTP_ADDRESS: 0.0.0.0
       GRPC_HOST: 0.0.0.0
       DB_URL: jdbc:postgresql://postgres:5432/lawflux_cases
       DB_USER: lawflux_cases
       DB_PASSWORD: ${CASES_DB_PASSWORD:?Mot de passe requis}
+    expose: ["9092"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -110,16 +134,27 @@ services:
       args:
         SERVICE: document-service
     environment:
+      SERVICE_9093_NAME: lawflux-documents
+      SERVICE_8083_IGNORE: "true"
       HTTP_ADDRESS: 0.0.0.0
       GRPC_HOST: 0.0.0.0
       DB_URL: jdbc:postgresql://postgres:5432/lawflux_documents
       DB_USER: lawflux_documents
       DB_PASSWORD: ${DOCUMENTS_DB_PASSWORD:?Mot de passe requis}
       DOCUMENT_STORAGE_ROOT: /data/documents
+      CASES_GRPC_ADDRESS: load-balancer:9102
+      DOCUMENTS_BUSINESS_ENABLED: ${DOCUMENTS_BUSINESS_ENABLED:-false}
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/lawflux
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/lawflux/protocol/openid-connect/certs
+    expose: ["9093"]
     volumes: ["document_data:/data/documents"]
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak:
+        condition: service_started
+      load-balancer:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8083/actuator/health/readiness | grep -q UP"]
       interval: 10s
@@ -134,11 +169,14 @@ services:
       args:
         SERVICE: billing-service
     environment:
+      SERVICE_9094_NAME: lawflux-billing
+      SERVICE_8084_IGNORE: "true"
       HTTP_ADDRESS: 0.0.0.0
       GRPC_HOST: 0.0.0.0
       DB_URL: jdbc:postgresql://postgres:5432/lawflux_billing
       DB_USER: lawflux_billing
       DB_PASSWORD: ${BILLING_DB_PASSWORD:?Mot de passe requis}
+    expose: ["9094"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -174,7 +212,45 @@ services:
       timeout: 5s
       start_period: 60s
       retries: 10
+  discovery-service:
+    profiles: ["apps"]
+    image: hashicorp/consul:1.21.5
+    command: ["agent", "-dev", "-client=0.0.0.0", "-dns-port=8600"]
+    networks:
+      default:
+        ipv4_address: 172.30.55.10
+    ports: ["127.0.0.1:8500:8500"]
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  discovery-registrar:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: infra/discovery/Dockerfile
+    environment:
+      CONSUL_URL: http://discovery-service:8500
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+  load-balancer:
+    profiles: ["apps"]
+    image: envoyproxy/envoy:v1.36.4
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]
+    volumes: ["./infra/envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro"]
+    ports: ["127.0.0.1:9901:9901"]
+    depends_on:
+      discovery-service:
+        condition: service_healthy
 volumes:
   postgres_data:
   rabbitmq_data:
   document_data:
+  keycloak_data:
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.55.0/24
