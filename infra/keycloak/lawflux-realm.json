@@ -1,0 +1,39 @@
+{
+  "realm": "lawflux",
+  "enabled": true,
+  "displayName": "LAWFLUX",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
+  "roles": {"realm": [
+    {"name": "cabinet_manager"},
+    {"name": "lawyer"},
+    {"name": "assistant"},
+    {"name": "client"}
+  ]},
+  "clients": [{
+    "clientId": "lawflux-web",
+    "name": "LAWFLUX Web",
+    "enabled": true,
+    "publicClient": true,
+    "standardFlowEnabled": true,
+    "directAccessGrantsEnabled": false,
+    "redirectUris": ["http://localhost:5173/*"],
+    "webOrigins": ["http://localhost:5173"],
+    "attributes": {"pkce.code.challenge.method": "S256", "post.logout.redirect.uris": "http://localhost:5173/*"},
+    "protocolMappers": [{
+      "name": "cabinet-id",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-attribute-mapper",
+      "consentRequired": false,
+      "config": {
+        "user.attribute": "cabinet_id",
+        "claim.name": "cabinet_id",
+        "jsonType.label": "String",
+        "access.token.claim": "true",
+        "id.token.claim": "false",
+        "userinfo.token.claim": "false"
+      }
+    }]
+  }]
+}

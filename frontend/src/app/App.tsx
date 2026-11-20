@@ -1,7 +1,10 @@
-import { Link, Navigate, NavLink, Outlet, useRoutes } from 'react-router'
+import { useSyncExternalStore } from 'react'
+import { Link, Navigate, NavLink, Outlet, useLocation, useRoutes } from 'react-router'
 import { dossierRoutes } from '../features/dossiers/routes'
 import { documentRoutes } from '../features/documents-facturation/routes'
 import { DiagnosticPage } from '../features/system/DiagnosticPage'
+import { LoginPage, LoginCallbackPage } from '../features/system/LoginPage'
+import { getProfile, signOut, subscribeToAuth } from '../features/system/auth'
 import { Page, PendingPage } from '../shared/Page'
 
 const links = [
@@ -16,6 +19,11 @@ const links = [
 ] as const
 
 function Layout() {
+  const location = useLocation()
+  const profile = useSyncExternalStore(subscribeToAuth, getProfile)
+  const publicPage = location.pathname === '/connexion' || location.pathname === '/connexion/retour'
+    || location.pathname === '/diagnostic'
+  if (!profile && !publicPage) return <Navigate to="/connexion" state={{ from: location.pathname + location.search }} replace />
   return (
     <>
       <a className="skip-link" href="#contenu">Aller au contenu</a>
@@ -25,6 +33,7 @@ function Layout() {
           <nav aria-label="Navigation principale">
             {links.map(([path, label]) => <NavLink key={path} to={path}>{label}</NavLink>)}
           </nav>
+          {profile && <button type="button" onClick={signOut}>Se déconnecter</button>}
         </div>
       </header>
       <main id="contenu" className="shell" tabIndex={-1}>
@@ -42,7 +51,8 @@ export function App() {
       ...dossierRoutes,
       ...documentRoutes,
       { path: 'diagnostic', element: <DiagnosticPage /> },
-      { path: 'connexion', element: <PendingPage title="Connexion" /> },
+      { path: 'connexion', element: <LoginPage /> },
+      { path: 'connexion/retour', element: <LoginCallbackPage /> },
       { path: 'notifications', element: <PendingPage title="Notifications" /> },
       { path: 'parametres/cabinet', element: <PendingPage title="Cabinet" /> },
       { path: 'parametres/membres', element: <PendingPage title="Membres" /> },
