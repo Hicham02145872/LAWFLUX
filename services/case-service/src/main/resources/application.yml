@@ -18,3 +18,8 @@ spring:
 server:
   port: ${HTTP_PORT:8082}
   address: ${HTTP_ADDRESS:127.0.0.1}
+lawflux:
+  cases:
+    access-enabled: ${CASES_ACCESS_ENABLED:true}
+    issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/lawflux}
+    jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/lawflux/protocol/openid-connect/certs}

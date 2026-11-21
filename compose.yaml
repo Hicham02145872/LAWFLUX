@@ -116,10 +116,15 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/lawflux_cases
       DB_USER: lawflux_cases
       DB_PASSWORD: ${CASES_DB_PASSWORD:?Mot de passe requis}
+      CASES_ACCESS_ENABLED: "true"
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/lawflux
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/lawflux/protocol/openid-connect/certs
     expose: ["9092"]
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8082/actuator/health/readiness | grep -q UP"]
       interval: 10s
