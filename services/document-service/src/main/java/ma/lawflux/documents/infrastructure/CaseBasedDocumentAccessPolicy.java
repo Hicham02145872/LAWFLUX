@@ -26,12 +26,17 @@ public class CaseBasedDocumentAccessPolicy implements DocumentAccessPolicy {
     @Override
     public Set<DocumentAction> allowedActions(CallerContext caller, Document document, boolean shared) {
         if (!caller.cabinetId().equals(document.cabinetId())
-                || !cases.canAccess(caller.cabinetId(), document.caseId())) return Set.of();
+                || !cases.canAccess(caller.cabinetId(), document.caseId(), "DOCUMENT_READ")) return Set.of();
         Object access = identity.jwt().getClaim("realm_access");
         Object roles = access instanceof Map<?, ?> map ? map.get("roles") : null;
         if (!(roles instanceof List<?> list)) return Set.of();
         if (list.contains("cabinet_manager") || list.contains("lawyer")) {
-            return EnumSet.allOf(DocumentAction.class);
+            EnumSet<DocumentAction> rights = EnumSet.of(DocumentAction.DOWNLOAD);
+            if (cases.canAccess(caller.cabinetId(), document.caseId(), "DOCUMENT_SHARE")) {
+                rights.add(DocumentAction.SHARE);
+                rights.add(DocumentAction.UNSHARE);
+            }
+            return rights;
         }
         if (list.contains("assistant")) return EnumSet.of(DocumentAction.DOWNLOAD);
         if (list.contains("client") && shared) return EnumSet.of(DocumentAction.DOWNLOAD);

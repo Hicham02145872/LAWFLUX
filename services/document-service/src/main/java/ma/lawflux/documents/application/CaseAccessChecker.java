@@ -8,4 +8,9 @@ import java.util.UUID;
  */
 public interface CaseAccessChecker {
     boolean canAccess(UUID cabinetId, UUID caseId);
+
+    /** Action reconnue par CheckCaseAccess ; refus sûr si le service est indisponible. */
+    default boolean canAccess(UUID cabinetId, UUID caseId, String action) {
+        return canAccess(cabinetId, caseId);
+    }
 }

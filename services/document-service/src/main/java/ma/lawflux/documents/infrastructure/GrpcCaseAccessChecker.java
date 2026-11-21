@@ -25,15 +25,20 @@ public class GrpcCaseAccessChecker implements CaseAccessChecker {
 
     @Override
     public boolean canAccess(UUID cabinetId, UUID caseId) {
+        return canAccess(cabinetId, caseId, "DOCUMENT_READ");
+    }
+
+    @Override
+    public boolean canAccess(UUID cabinetId, UUID caseId, String action) {
         String authorization = ScaffoldGrpcBoundary.AUTHORIZATION_CONTEXT.get();
-        if (authorization == null || caseId == null || cabinetId == null) return false;
+        if (authorization == null || caseId == null || cabinetId == null || action == null) return false;
         Metadata headers = new Metadata();
         headers.put(ScaffoldGrpcBoundary.AUTHORIZATION, authorization);
         try {
             return stub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers))
                     .withDeadline(Deadline.after(2, TimeUnit.SECONDS))
                     .checkCaseAccess(CheckCaseAccessRequest.newBuilder()
-                            .setCaseId(caseId.toString()).setAction("DOCUMENT_READ").build())
+                            .setCaseId(caseId.toString()).setAction(action).build())
                     .getAllowed();
         } catch (StatusRuntimeException e) {
             return false;

@@ -37,7 +37,7 @@ public class UploadDocumentUseCase {
         DocumentType type = FileRules.typeOf(name);
 
         // Le dossier doit appartenir au cabinet de l'appelant, avant toute écriture.
-        if (!caseAccess.canAccess(cmd.cabinetId(), cmd.caseId())) {
+        if (!caseAccess.canAccess(cmd.cabinetId(), cmd.caseId(), "DOCUMENT_WRITE")) {
             throw new CaseAccessDeniedException("Accès au dossier refusé");
         }
 

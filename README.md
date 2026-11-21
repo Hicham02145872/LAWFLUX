@@ -119,6 +119,7 @@ Le socle React est dans `frontend`. Le [guide frontend](frontend/README.md) dét
 
 - [Load balancing gRPC Round Robin : démarrage avec trois instances et tests](docs/03-load-balancing.md).
 - [Keycloak : realm, jetons JWT et démarrage local](docs/04-keycloak.md).
+- [Accès aux dossiers : affectations et contrôle gRPC](docs/06-case-access.md).
 
 - [Spring Boot 3.5 — prérequis](https://docs.spring.io/spring-boot/3.5/system-requirements.html).
 - [Spring gRPC 0.12 — compatibilité et intégration](https://github.com/spring-projects/spring-grpc/blob/v0.12.0/spring-grpc-docs/src/main/antora/modules/ROOT/pages/getting-started.adoc).

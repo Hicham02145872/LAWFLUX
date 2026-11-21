@@ -44,7 +44,7 @@ public class AddVersionUseCase {
         // Rien n'est écrit si le document n'existe pas dans le cabinet de l'appelant.
         var document = documents.findDocument(cmd.cabinetId(), cmd.documentId())
                 .orElseThrow(() -> new DocumentNotFoundException("Document introuvable"));
-        if (!caseAccess.canAccess(cmd.cabinetId(), document.caseId()))
+        if (!caseAccess.canAccess(cmd.cabinetId(), document.caseId(), "DOCUMENT_WRITE"))
             throw new CaseAccessDeniedException("Accès au dossier refusé");
 
         String storageKey = storage.store(cmd.cabinetId(), name, cmd.content(), cmd.sizeBytes());
