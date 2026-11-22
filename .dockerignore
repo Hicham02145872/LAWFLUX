@@ -3,6 +3,7 @@
 .cache
 tmp
 outputs
+collage-smart
 **/target
 **/node_modules
 .env

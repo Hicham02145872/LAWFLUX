@@ -2,6 +2,11 @@ spring:
   application:
     name: document-service
   grpc:
+    client:
+      channels:
+        cases:
+          address: ${CASES_GRPC_ADDRESS:localhost:9092}
+          negotiation-type: plaintext
     server:
       host: ${GRPC_HOST:127.0.0.1}
       port: ${GRPC_PORT:9093}
@@ -23,3 +28,8 @@ lawflux:
   documents:
     storage-root: ${DOCUMENT_STORAGE_ROOT:./var/documents}
     max-file-size: 20MB
+    business-enabled: ${DOCUMENTS_BUSINESS_ENABLED:false}
+    upload-idle-timeout: ${DOCUMENT_UPLOAD_IDLE_TIMEOUT:30s}
+    download-idle-timeout: ${DOCUMENT_DOWNLOAD_IDLE_TIMEOUT:30s}
+    issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/lawflux}
+    jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/lawflux/protocol/openid-connect/certs}

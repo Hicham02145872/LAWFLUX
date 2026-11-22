@@ -4,6 +4,106 @@ option java_package = "ma.lawflux.contracts.documents.v1";
 option java_multiple_files = true;
 
 // Contrat initial : opérations métier non implémentées dans ce scaffolding.
-service DocumentService { rpc GetDocument (GetDocumentRequest) returns (DocumentReply); }
+service DocumentService {
+  rpc GetDocument (GetDocumentRequest) returns (DocumentReply);
+  rpc ListDocuments (ListDocumentsRequest) returns (ListDocumentsReply);
+  // Client streaming : 1er message = métadonnées, suivants = morceaux de 256 Ko.
+  rpc UploadDocument (stream UploadDocumentRequest) returns (UploadDocumentReply);
+  rpc ListVersions (ListVersionsRequest) returns (ListVersionsReply);
+  // Même principe que UploadDocument, pour ajouter une version à un document existant.
+  rpc AddVersion (stream AddVersionRequest) returns (AddVersionReply);
+}
+
 message GetDocumentRequest { string document_id = 1; }
 message DocumentReply { string id = 1; string case_id = 2; string filename = 3; int32 version = 4; }
+
+message ListDocumentsRequest { string case_id = 1; }
+
+message DocumentSummary {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string author = 4;
+  string created_at = 5;
+}
+
+message ListDocumentsReply { repeated DocumentSummary documents = 1; }
+
+message UploadMetadata {
+  string case_id = 1;
+  string file_name = 2;
+}
+
+message UploadDocumentRequest {
+  oneof payload {
+    UploadMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message UploadDocumentReply { DocumentSummary document = 1; }
+
+message ListVersionsRequest { string document_id = 1; }
+
+message VersionSummary {
+  int32 number = 1;
+  string author = 2;
+  string created_at = 3;
+  string type = 4;
+  int64 size_bytes = 5;
+}
+
+message ListVersionsReply { repeated VersionSummary versions = 1; }
+
+message AddVersionMetadata {
+  string document_id = 1;
+  string file_name = 2;
+}
+
+message AddVersionRequest {
+  oneof payload {
+    AddVersionMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message AddVersionReply { VersionSummary version = 1; }
+
+
+service DocumentSharingService {
+  rpc GetSharing (SharingRequest) returns (SharingReply);
+  rpc ShareDocument (SharingRequest) returns (SharingReply);
+  rpc UnshareDocument (SharingRequest) returns (SharingReply);
+  // Server streaming : 1er message = en-tête, suivants = morceaux de 256 Ko.
+  // Jamais d'URL publique ni de clé de stockage.
+  rpc DownloadDocument (SharingRequest) returns (stream DownloadDocumentReply);
+}
+
+message SharingRequest { string document_id = 1; }
+
+enum SharingAction {
+  SHARING_ACTION_UNSPECIFIED = 0;
+  SHARING_ACTION_SHARE = 1;
+  SHARING_ACTION_UNSHARE = 2;
+  SHARING_ACTION_DOWNLOAD = 3;
+}
+
+message SharingReply {
+  string document_id = 1;
+  string name = 2;
+  bool shared = 3;
+  repeated SharingAction allowed_actions = 4;
+}
+
+message DownloadHeader {
+  string file_name = 1;
+  string type = 2;
+  int64 size_bytes = 3;
+}
+
+message DownloadDocumentReply {
+  oneof payload {
+    DownloadHeader header = 1;
+    bytes chunk = 2;
+  }
+}

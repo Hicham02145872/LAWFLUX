@@ -6,12 +6,41 @@ import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import ma.lawflux.contracts.cases.v1.CaseServiceGrpc;
 import ma.lawflux.contracts.cases.v1.GetCaseRequest;
+import ma.lawflux.contracts.cases.v1.CheckCaseAccessRequest;
+import ma.lawflux.contracts.cases.v1.CheckCaseAccessReply;
 import ma.lawflux.contracts.platform.v1.*;
 import ma.lawflux.platform.grpc.ScaffoldGrpcBoundary;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class ScaffoldBoundaryTest {
+    @Test void caseAccessCanOpenWithoutOpeningOtherCaseRpcs() throws Exception {
+        String name = InProcessServerBuilder.generateName();
+        Server server = InProcessServerBuilder.forName(name).directExecutor()
+            .intercept(new ScaffoldGrpcBoundary(false, true))
+            .addService(new CaseServiceGrpc.CaseServiceImplBase() {
+                @Override public void checkCaseAccess(CheckCaseAccessRequest request,
+                        StreamObserver<CheckCaseAccessReply> observer) {
+                    observer.onNext(CheckCaseAccessReply.newBuilder()
+                            .setAllowed("Bearer example".equals(ScaffoldGrpcBoundary.AUTHORIZATION_CONTEXT.get()))
+                            .build());
+                    observer.onCompleted();
+                }
+            }).build().start();
+        ManagedChannel channel = InProcessChannelBuilder.forName(name).directExecutor().build();
+        try {
+            Metadata headers = new Metadata();
+            headers.put(ScaffoldGrpcBoundary.AUTHORIZATION, "Bearer example");
+            var client = CaseServiceGrpc.newBlockingStub(channel)
+                    .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers));
+            assertThat(client.checkCaseAccess(CheckCaseAccessRequest.newBuilder()
+                    .setCaseId("case").setAction("DOCUMENT_READ").build()).getAllowed()).isTrue();
+            assertThatThrownBy(() -> client.getCase(GetCaseRequest.newBuilder().setCaseId("case").build()))
+                    .isInstanceOfSatisfying(StatusRuntimeException.class,
+                            e -> assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.UNAUTHENTICATED));
+        } finally { channel.shutdownNow(); server.shutdownNow(); }
+    }
+
     @Test void probeCarriesCorrelationWhileBusinessRpcRemainsClosed() throws Exception {
         String name = InProcessServerBuilder.generateName();
         Server server = InProcessServerBuilder.forName(name).directExecutor()

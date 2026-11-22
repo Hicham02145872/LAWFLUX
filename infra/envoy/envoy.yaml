@@ -1,0 +1,178 @@
+admin:
+  address:
+    socket_address: {address: 0.0.0.0, port_value: 9901}
+static_resources:
+  listeners:
+  - name: identity_listener
+    address:
+      socket_address: {address: 0.0.0.0, port_value: 9101}
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: identity_grpc
+          codec_type: HTTP2
+          http2_protocol_options: {}
+          route_config:
+            name: identity_route
+            virtual_hosts:
+            - name: identity_host
+              domains: ["*"]
+              routes:
+              - match: {prefix: "/"}
+                route: {cluster: identity_cluster, timeout: 0s}
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  - name: cases_listener
+    address:
+      socket_address: {address: 0.0.0.0, port_value: 9102}
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: cases_grpc
+          codec_type: HTTP2
+          http2_protocol_options: {}
+          route_config:
+            name: cases_route
+            virtual_hosts:
+            - name: cases_host
+              domains: ["*"]
+              routes:
+              - match: {prefix: "/"}
+                route: {cluster: cases_cluster, timeout: 0s}
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  - name: documents_listener
+    address:
+      socket_address: {address: 0.0.0.0, port_value: 9103}
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: documents_grpc
+          codec_type: HTTP2
+          http2_protocol_options: {}
+          route_config:
+            name: documents_route
+            virtual_hosts:
+            - name: documents_host
+              domains: ["*"]
+              routes:
+              - match: {prefix: "/"}
+                route: {cluster: documents_cluster, timeout: 0s}
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  - name: billing_listener
+    address:
+      socket_address: {address: 0.0.0.0, port_value: 9104}
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: billing_grpc
+          codec_type: HTTP2
+          http2_protocol_options: {}
+          route_config:
+            name: billing_route
+            virtual_hosts:
+            - name: billing_host
+              domains: ["*"]
+              routes:
+              - match: {prefix: "/"}
+                route: {cluster: billing_cluster, timeout: 0s}
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  clusters:
+  - name: identity_cluster
+    http2_protocol_options: {}
+    type: STRICT_DNS
+    connect_timeout: 2s
+    lb_policy: ROUND_ROBIN
+    dns_lookup_family: V4_ONLY
+    dns_refresh_rate: 2s
+    typed_dns_resolver_config:
+      name: envoy.network.dns_resolver.cares
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig
+        resolvers:
+        - socket_address: {address: 172.30.55.10, port_value: 8600}
+    load_assignment:
+      cluster_name: identity_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address: {address: lawflux-identity.service.consul, port_value: 9091}
+  - name: cases_cluster
+    http2_protocol_options: {}
+    type: STRICT_DNS
+    connect_timeout: 2s
+    lb_policy: ROUND_ROBIN
+    dns_lookup_family: V4_ONLY
+    dns_refresh_rate: 2s
+    typed_dns_resolver_config:
+      name: envoy.network.dns_resolver.cares
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig
+        resolvers:
+        - socket_address: {address: 172.30.55.10, port_value: 8600}
+    load_assignment:
+      cluster_name: cases_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address: {address: lawflux-cases.service.consul, port_value: 9092}
+  - name: documents_cluster
+    http2_protocol_options: {}
+    type: STRICT_DNS
+    connect_timeout: 2s
+    lb_policy: ROUND_ROBIN
+    dns_lookup_family: V4_ONLY
+    dns_refresh_rate: 2s
+    typed_dns_resolver_config:
+      name: envoy.network.dns_resolver.cares
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig
+        resolvers:
+        - socket_address: {address: 172.30.55.10, port_value: 8600}
+    load_assignment:
+      cluster_name: documents_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address: {address: lawflux-documents.service.consul, port_value: 9093}
+  - name: billing_cluster
+    http2_protocol_options: {}
+    type: STRICT_DNS
+    connect_timeout: 2s
+    lb_policy: ROUND_ROBIN
+    dns_lookup_family: V4_ONLY
+    dns_refresh_rate: 2s
+    typed_dns_resolver_config:
+      name: envoy.network.dns_resolver.cares
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.network.dns_resolver.cares.v3.CaresDnsResolverConfig
+        resolvers:
+        - socket_address: {address: 172.30.55.10, port_value: 8600}
+    load_assignment:
+      cluster_name: billing_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address: {address: lawflux-billing.service.consul, port_value: 9094}

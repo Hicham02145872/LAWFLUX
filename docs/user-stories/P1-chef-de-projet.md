@@ -151,10 +151,10 @@ En tant que responsable de cabinet, je veux affecter les avocats et définir les
 
 **Sous-stories / tâches à ta charge**
 
-- [ ] **US-10.TECH-1** — Créer affectations et autorisations explicites de dossier.
-- [ ] **US-10.TECH-2** — Implémenter affectation et RPC CheckCaseAccess avec refus par défaut.
-- [ ] **US-10.TECH-3** — Tester avocat affecté/non affecté, exception cabinet et client non autorisé.
-- [ ] **US-10.TECH-4** — Concevoir et implémenter CheckCaseAccess, affectations et autorisations explicites ; aucun code de permission à déléguer.
+- [x] **US-10.TECH-1** — Créer affectations et autorisations explicites de dossier.
+- [x] **US-10.TECH-2** — Implémenter affectation et RPC CheckCaseAccess avec refus par défaut.
+- [x] **US-10.TECH-3** — Tester avocat affecté/non affecté, exception cabinet et client non autorisé.
+- [x] **US-10.TECH-4** — Concevoir et implémenter CheckCaseAccess, affectations et autorisations explicites ; aucun code de permission à déléguer.
 - [ ] **US-10.TECH-5** — Préparer le client API frontend et un exemple d’utilisation pour Fatima.
 
 **Écrans à développer**

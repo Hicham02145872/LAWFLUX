@@ -7,9 +7,23 @@ option java_multiple_files = true;
 service CaseService {
   rpc GetCase (GetCaseRequest) returns (CaseReply);
   rpc CheckCaseAccess (CheckCaseAccessRequest) returns (CheckCaseAccessReply);
+  rpc ListCaseAccess (ListCaseAccessRequest) returns (ListCaseAccessReply);
+  rpc GrantCaseAccess (GrantCaseAccessRequest) returns (CaseAccessGrantReply);
+  rpc RevokeCaseAccess (RevokeCaseAccessRequest) returns (CaseAccessGrantReply);
 }
 message GetCaseRequest { string case_id = 1; }
 message CaseReply { string id = 1; string title = 2; string status = 3; }
 // L'utilisateur et son cabinet proviennent du contexte authentifié, jamais du body.
 message CheckCaseAccessRequest { string case_id = 1; string action = 2; }
 message CheckCaseAccessReply { bool allowed = 1; }
+// Les identités du demandeur viennent exclusivement du jeton Bearer gRPC.
+message ListCaseAccessRequest { string case_id = 1; }
+message CaseAccessGrant {
+  string user_id = 1;
+  string kind = 2; // STAFF ou CLIENT
+  string granted_at = 3;
+}
+message ListCaseAccessReply { repeated CaseAccessGrant grants = 1; }
+message GrantCaseAccessRequest { string case_id = 1; string user_id = 2; string kind = 3; }
+message RevokeCaseAccessRequest { string case_id = 1; string user_id = 2; string kind = 3; }
+message CaseAccessGrantReply { bool active = 1; }
