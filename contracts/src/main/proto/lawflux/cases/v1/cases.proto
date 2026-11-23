@@ -10,6 +10,11 @@ service CaseService {
   rpc ListCaseAccess (ListCaseAccessRequest) returns (ListCaseAccessReply);
   rpc GrantCaseAccess (GrantCaseAccessRequest) returns (CaseAccessGrantReply);
   rpc RevokeCaseAccess (RevokeCaseAccessRequest) returns (CaseAccessGrantReply);
+  rpc CreateClient (CreateClientRequest) returns (ClientReply);
+  rpc GetClient (GetClientRequest) returns (ClientReply);
+  rpc UpdateClient (UpdateClientRequest) returns (ClientReply);
+  rpc ArchiveClient (ArchiveClientRequest) returns (ArchiveClientReply);
+  rpc ListClients (ListClientsRequest) returns (ListClientsReply);
 }
 message GetCaseRequest { string case_id = 1; }
 message CaseReply { string id = 1; string title = 2; string status = 3; }
@@ -27,3 +32,59 @@ message ListCaseAccessReply { repeated CaseAccessGrant grants = 1; }
 message GrantCaseAccessRequest { string case_id = 1; string user_id = 2; string kind = 3; }
 message RevokeCaseAccessRequest { string case_id = 1; string user_id = 2; string kind = 3; }
 message CaseAccessGrantReply { bool active = 1; }
+message ClientRecord {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  string phone = 4;
+  string address = 5;
+  string status = 6;
+  string created_at = 7;
+  string updated_at = 8;
+  string archived_at = 9;
+}
+
+message CreateClientRequest {
+  string name = 1;
+  string email = 2;
+  string phone = 3;
+  string address = 4;
+}
+
+message GetClientRequest {
+  string client_id = 1;
+}
+
+message UpdateClientRequest {
+  string client_id = 1;
+  string name = 2;
+  string email = 3;
+  string phone = 4;
+  string address = 5;
+}
+
+message ArchiveClientRequest {
+  string client_id = 1;
+}
+
+message ArchiveClientReply {
+  bool archived = 1;
+}
+
+message ListClientsRequest {
+  string status = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ClientReply {
+  ClientRecord client = 1;
+}
+
+message ListClientsReply {
+  repeated ClientRecord clients = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int64 total_elements = 4;
+  int64 total_pages = 5;
+}
