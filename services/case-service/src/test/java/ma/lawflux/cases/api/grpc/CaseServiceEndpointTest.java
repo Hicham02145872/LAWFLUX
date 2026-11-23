@@ -1,27 +1,34 @@
 package ma.lawflux.cases.api.grpc;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
-import io.grpc.Context;
-import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.springframework.security.oauth2.jwt.Jwt;
+
+import io.grpc.Context;
+import io.grpc.Status;
+import io.grpc.stub.StreamObserver;
 import ma.lawflux.cases.application.CaseAccessService;
+import ma.lawflux.cases.application.ClientService;
 import ma.lawflux.cases.domain.AccessKind;
 import ma.lawflux.cases.domain.CaseAccessRepository;
 import ma.lawflux.cases.infrastructure.CaseJwtIdentity;
+import ma.lawflux.contracts.cases.v1.CaseAccessGrantReply;
 import ma.lawflux.contracts.cases.v1.CheckCaseAccessReply;
 import ma.lawflux.contracts.cases.v1.CheckCaseAccessRequest;
 import ma.lawflux.contracts.cases.v1.GrantCaseAccessRequest;
-import ma.lawflux.contracts.cases.v1.CaseAccessGrantReply;
 import ma.lawflux.platform.grpc.ScaffoldGrpcBoundary;
-import org.junit.jupiter.api.Test;
-import org.springframework.security.oauth2.jwt.Jwt;
 
 class CaseServiceEndpointTest {
     private final UUID cabinet = UUID.randomUUID();
@@ -33,7 +40,9 @@ class CaseServiceEndpointTest {
             .subject(user.toString()).claim("cabinet_id", cabinet.toString())
             .claim("realm_access", Map.of("roles", List.of("lawyer"))).build();
     private final CaseServiceEndpoint endpoint = new CaseServiceEndpoint(
-            new CaseAccessService(repository), new CaseJwtIdentity(token -> lawyerJwt));
+        new CaseAccessService(repository),
+        mock(ClientService.class),
+        new CaseJwtIdentity(token -> lawyerJwt));
 
     @Test
     void bearerIdentityAndActiveAssignmentAreRequired() {
