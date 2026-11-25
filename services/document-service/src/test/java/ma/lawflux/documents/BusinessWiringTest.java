@@ -34,6 +34,13 @@ import org.springframework.boot.convert.ApplicationConversionService;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import ma.lawflux.documents.api.grpc.DocumentSharingEndpoint;
 
+import ma.lawflux.documents.application.AddCommentUseCase;
+import ma.lawflux.documents.application.CommentAccessPolicy;
+import ma.lawflux.documents.application.CommentRight;
+import ma.lawflux.documents.application.ListCommentsUseCase;
+import ma.lawflux.documents.domain.DocumentCommentRepository;
+import ma.lawflux.documents.support.InMemoryDocumentCommentRepository;
+
 class BusinessWiringTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
@@ -51,7 +58,9 @@ class BusinessWiringTest {
                     ShareDocumentUseCase.class,
                     UnshareDocumentUseCase.class,
                     DownloadDocumentUseCase.class,
-                    DocumentSharingEndpoint.class);
+                    DocumentSharingEndpoint.class,
+                    AddCommentUseCase.class,
+                    ListCommentsUseCase.class);
 
     @Test
     void configuration_par_defaut_demarre_sans_endpoint_metier_ni_beans_manquants() {
@@ -68,6 +77,8 @@ class BusinessWiringTest {
             assertThat(context).doesNotHaveBean(UnshareDocumentUseCase.class);
             assertThat(context).doesNotHaveBean(DownloadDocumentUseCase.class);
             assertThat(context).doesNotHaveBean(DocumentSharingEndpoint.class);
+            assertThat(context).doesNotHaveBean(AddCommentUseCase.class);
+            assertThat(context).doesNotHaveBean(ListCommentsUseCase.class);
         });
     }
 
@@ -85,6 +96,9 @@ class BusinessWiringTest {
                         () -> storageKey -> new ByteArrayInputStream(new byte[0]))
                 .withBean(CallerContextProvider.class,
                         () -> () -> new CallerContext(UUID.randomUUID(), UUID.randomUUID(), "Karim"))
+                        .withBean(DocumentCommentRepository.class, InMemoryDocumentCommentRepository::new)
+                        .withBean(CommentAccessPolicy.class,
+                                () -> (caller, document, shared) -> EnumSet.of(CommentRight.READ_SHARED))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(DocumentServiceEndpoint.class);
@@ -94,6 +108,8 @@ class BusinessWiringTest {
                     assertThat(context).hasSingleBean(UnshareDocumentUseCase.class);
                     assertThat(context).hasSingleBean(DownloadDocumentUseCase.class);
                     assertThat(context).hasSingleBean(DocumentSharingEndpoint.class);
+                    assertThat(context).hasSingleBean(AddCommentUseCase.class);
+                    assertThat(context).hasSingleBean(ListCommentsUseCase.class);
                 });
     }
 }
