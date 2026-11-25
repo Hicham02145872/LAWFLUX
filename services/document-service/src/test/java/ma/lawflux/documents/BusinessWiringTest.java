@@ -40,6 +40,8 @@ import ma.lawflux.documents.application.CommentRight;
 import ma.lawflux.documents.application.ListCommentsUseCase;
 import ma.lawflux.documents.domain.DocumentCommentRepository;
 import ma.lawflux.documents.support.InMemoryDocumentCommentRepository;
+import ma.lawflux.documents.api.grpc.DocumentCommentEndpoint;
+import ma.lawflux.documents.application.GetCommentOptionsUseCase;
 
 class BusinessWiringTest {
 
@@ -60,7 +62,10 @@ class BusinessWiringTest {
                     DownloadDocumentUseCase.class,
                     DocumentSharingEndpoint.class,
                     AddCommentUseCase.class,
-                    ListCommentsUseCase.class);
+                    ListCommentsUseCase.class,
+                    
+                    GetCommentOptionsUseCase.class,
+                    DocumentCommentEndpoint.class);
 
     @Test
     void configuration_par_defaut_demarre_sans_endpoint_metier_ni_beans_manquants() {
@@ -79,6 +84,8 @@ class BusinessWiringTest {
             assertThat(context).doesNotHaveBean(DocumentSharingEndpoint.class);
             assertThat(context).doesNotHaveBean(AddCommentUseCase.class);
             assertThat(context).doesNotHaveBean(ListCommentsUseCase.class);
+            assertThat(context).doesNotHaveBean(GetCommentOptionsUseCase.class);
+            assertThat(context).doesNotHaveBean(DocumentCommentEndpoint.class);
         });
     }
 
@@ -110,6 +117,8 @@ class BusinessWiringTest {
                     assertThat(context).hasSingleBean(DocumentSharingEndpoint.class);
                     assertThat(context).hasSingleBean(AddCommentUseCase.class);
                     assertThat(context).hasSingleBean(ListCommentsUseCase.class);
+                    assertThat(context).hasSingleBean(GetCommentOptionsUseCase.class);
+                    assertThat(context).hasSingleBean(DocumentCommentEndpoint.class);
                 });
     }
 }

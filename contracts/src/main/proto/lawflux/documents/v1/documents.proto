@@ -107,3 +107,38 @@ message DownloadDocumentReply {
     bytes chunk = 2;
   }
 }
+
+service DocumentCommentService {
+  rpc ListComments (ListCommentsRequest) returns (ListCommentsReply);
+  rpc AddComment (AddCommentRequest) returns (AddCommentReply);
+}
+
+enum CommentVisibility {
+  COMMENT_VISIBILITY_UNSPECIFIED = 0;
+  COMMENT_VISIBILITY_INTERNAL = 1;
+  COMMENT_VISIBILITY_SHARED = 2;
+}
+
+message ListCommentsRequest { string document_id = 1; }
+
+message CommentSummary {
+  string id = 1;
+  string author = 2;
+  string created_at = 3;
+  CommentVisibility visibility = 4;
+  string body = 5;
+}
+
+// writable_visibilities : options que l'appelant peut choisir en écrivant (vide = lecture seule).
+message ListCommentsReply {
+  repeated CommentSummary comments = 1;
+  repeated CommentVisibility writable_visibilities = 2;
+}
+
+message AddCommentRequest {
+  string document_id = 1;
+  CommentVisibility visibility = 2;
+  string body = 3;
+}
+
+message AddCommentReply { CommentSummary comment = 1; }
