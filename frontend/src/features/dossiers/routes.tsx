@@ -1,11 +1,12 @@
 import type { RouteObject } from 'react-router'
 import { PendingPage } from '../../shared/Page'
+import { ClientFormPage } from '../clients/ClientFormPage'
+import { ClientsPage } from '../clients/ClientsPage'
+import { ClientDetailPage } from '../clients/ClientDetailPage'
+
 
 const pages = [
   ['tableau-de-bord', 'Tableau de bord'],
-  ['clients', 'Clients'],
-  ['clients/nouveau', 'Nouveau client'],
-  ['clients/:id', 'Fiche client'],
   ['dossiers', 'Dossiers'],
   ['dossiers/nouveau', 'Nouveau dossier'],
   ['dossiers/:id', 'Fiche dossier'],
@@ -18,6 +19,12 @@ const pages = [
   ['taches/nouvelle', 'Nouvelle tâche'],
 ] as const
 
-export const dossierRoutes: RouteObject[] = pages.map(([path, title]) => ({
-  path, element: <PendingPage title={title} />,
-}))
+export const dossierRoutes: RouteObject[] = [
+  { path: 'clients', element: <ClientsPage /> },
+  { path: 'clients/nouveau', element: <ClientFormPage /> },
+  { path: 'clients/:id', element: <ClientDetailPage /> },
+  ...pages.map(([path, title]) => ({
+    path,
+    element: <PendingPage title={title} />,
+  })),
+]
