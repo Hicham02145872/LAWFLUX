@@ -22,7 +22,8 @@ public class ScaffoldGrpcBoundary implements ServerInterceptor {
             Metadata headers, ServerCallHandler<ReqT, RespT> next) {
         String method = call.getMethodDescriptor().getFullMethodName();
         boolean documentMethod = method.startsWith("lawflux.documents.v1.DocumentService/")
-                || method.startsWith("lawflux.documents.v1.DocumentSharingService/");
+                || method.startsWith("lawflux.documents.v1.DocumentSharingService/")
+                || method.startsWith("lawflux.documents.v1.DocumentCommentService/");
         boolean caseMethod = method.equals("lawflux.cases.v1.CaseService/CheckCaseAccess")
                 || method.equals("lawflux.cases.v1.CaseService/ListCaseAccess")
                 || method.equals("lawflux.cases.v1.CaseService/GrantCaseAccess")

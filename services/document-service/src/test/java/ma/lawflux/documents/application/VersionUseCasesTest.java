@@ -29,7 +29,8 @@ class VersionUseCasesTest {
     private final InMemoryDocumentStorage storage = new InMemoryDocumentStorage();
     private final AddVersionUseCase add =
             new AddVersionUseCase(versions, storage, shares, (cabinet, caze) -> true, DataSize.ofMegabytes(20));
-    private final ListVersionsUseCase list = new ListVersionsUseCase(versions, shares, (cabinet, caze) -> true);
+    private final ListVersionsUseCase list = new ListVersionsUseCase(versions, shares, (cabinet, caze) -> true,
+            (caller, document, shared) -> java.util.EnumSet.of(ma.lawflux.documents.domain.DocumentAction.DOWNLOAD));
 
     @BeforeEach
     void setUp() {
@@ -88,14 +89,14 @@ class VersionUseCasesTest {
     void liste_du_plus_recent_au_plus_ancien() {
         add.execute(command(cabinetId, "v2.pdf", 1024));
 
-        assertThat(list.execute(cabinetId, documentId))
+        assertThat(list.execute(new CallerContext(UUID.randomUUID(), cabinetId, "Sara"), documentId))
                 .extracting(DocumentVersion::number)
                 .containsExactly(2, 1);
     }
 
     @Test
     void refuse_de_lister_les_versions_d_un_document_d_un_autre_cabinet() {
-        assertThatThrownBy(() -> list.execute(otherCabinetId, documentId))
+        assertThatThrownBy(() -> list.execute(new CallerContext(UUID.randomUUID(), otherCabinetId, "Sara"), documentId))
                 .isInstanceOf(DocumentNotFoundException.class);
     }
 }

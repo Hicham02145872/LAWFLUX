@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.convert.ApplicationConversionService;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import ma.lawflux.documents.api.grpc.DocumentSharingEndpoint;
+import ma.lawflux.documents.api.grpc.DocumentCommentEndpoint;
 
 import ma.lawflux.documents.application.AddCommentUseCase;
 import ma.lawflux.documents.application.CommentAccessPolicy;
@@ -59,6 +60,7 @@ class BusinessWiringTest {
                     UnshareDocumentUseCase.class,
                     DownloadDocumentUseCase.class,
                     DocumentSharingEndpoint.class,
+                    DocumentCommentEndpoint.class,
                     AddCommentUseCase.class,
                     ListCommentsUseCase.class);
 
@@ -79,6 +81,7 @@ class BusinessWiringTest {
             assertThat(context).doesNotHaveBean(DocumentSharingEndpoint.class);
             assertThat(context).doesNotHaveBean(AddCommentUseCase.class);
             assertThat(context).doesNotHaveBean(ListCommentsUseCase.class);
+            assertThat(context).doesNotHaveBean(DocumentCommentEndpoint.class);
         });
     }
 
@@ -110,6 +113,7 @@ class BusinessWiringTest {
                     assertThat(context).hasSingleBean(DocumentSharingEndpoint.class);
                     assertThat(context).hasSingleBean(AddCommentUseCase.class);
                     assertThat(context).hasSingleBean(ListCommentsUseCase.class);
+                    assertThat(context).hasSingleBean(DocumentCommentEndpoint.class);
                 });
     }
 }

@@ -55,9 +55,11 @@ class DocumentServiceEndpointTest {
 
   private DocumentServiceEndpoint endpointWith(Duration idleTimeout) {
     return new DocumentServiceEndpoint(
-            new ListDocumentsUseCase(repository, caseAccess),
+            new ListDocumentsUseCase(repository, caseAccess, shares,
+                    (caller, document, shared) -> java.util.EnumSet.of(ma.lawflux.documents.domain.DocumentAction.DOWNLOAD)),
             new UploadDocumentUseCase(repository, storage, caseAccess, maxSize),
-            new ListVersionsUseCase(versions, shares, caseAccess),
+            new ListVersionsUseCase(versions, shares, caseAccess,
+                    (caller, document, shared) -> java.util.EnumSet.of(ma.lawflux.documents.domain.DocumentAction.DOWNLOAD)),
             new AddVersionUseCase(versions, storage, shares, caseAccess, maxSize),
             () -> new CallerContext(userId, cabinetId, "Karim"),
             maxSize,

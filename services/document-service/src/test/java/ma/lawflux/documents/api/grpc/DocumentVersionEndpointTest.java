@@ -48,9 +48,11 @@ class DocumentVersionEndpointTest {
 
     private DocumentServiceEndpoint endpointWith(UUID callerCabinet, Duration idleTimeout) {
         return new DocumentServiceEndpoint(
-                new ListDocumentsUseCase(documents, (cabinet, caze) -> true),
+                new ListDocumentsUseCase(documents, (cabinet, caze) -> true, shares,
+                        (caller, document, shared) -> java.util.EnumSet.of(ma.lawflux.documents.domain.DocumentAction.DOWNLOAD)),
                 new UploadDocumentUseCase(documents, storage, (cabinet, caze) -> true, maxSize),
-                new ListVersionsUseCase(versions, shares, (cabinet, caze) -> true),
+                new ListVersionsUseCase(versions, shares, (cabinet, caze) -> true,
+                        (caller, document, shared) -> java.util.EnumSet.of(ma.lawflux.documents.domain.DocumentAction.DOWNLOAD)),
                 new AddVersionUseCase(versions, storage, shares, (cabinet, caze) -> true, maxSize),
                 () -> new CallerContext(userId, callerCabinet, "Sara"),
                 maxSize,

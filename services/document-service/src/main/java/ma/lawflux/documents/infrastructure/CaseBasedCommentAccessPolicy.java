@@ -31,11 +31,9 @@ public class CaseBasedCommentAccessPolicy implements CommentAccessPolicy {
             return Set.of();
         }
         List<?> roles = roles();
-        boolean canWrite = cases.canAccess(caller.cabinetId(), document.caseId(), "DOCUMENT_WRITE");
-
         if (roles.contains("cabinet_manager") || roles.contains("lawyer") || roles.contains("assistant")) {
             EnumSet<CommentRight> rights = EnumSet.of(CommentRight.READ_INTERNAL, CommentRight.READ_SHARED);
-            if (canWrite) {
+            if (cases.canAccess(caller.cabinetId(), document.caseId(), "DOCUMENT_WRITE")) {
                 rights.add(CommentRight.WRITE_INTERNAL);
                 rights.add(CommentRight.WRITE_SHARED);
             }
@@ -44,7 +42,7 @@ public class CaseBasedCommentAccessPolicy implements CommentAccessPolicy {
         // Un client ne voit que les échanges partagés, sur un document qui lui est encore partagé.
         if (roles.contains("client") && shared) {
             EnumSet<CommentRight> rights = EnumSet.of(CommentRight.READ_SHARED);
-            if (canWrite) {
+            if (cases.canAccess(caller.cabinetId(), document.caseId(), "DOCUMENT_COMMENT")) {
                 rights.add(CommentRight.WRITE_SHARED);
             }
             return rights;

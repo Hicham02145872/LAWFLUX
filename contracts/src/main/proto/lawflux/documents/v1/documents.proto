@@ -79,6 +79,27 @@ service DocumentSharingService {
   rpc DownloadDocument (SharingRequest) returns (stream DownloadDocumentReply);
 }
 
+service DocumentCommentService {
+  rpc ListComments (DocumentCommentsRequest) returns (DocumentCommentsReply);
+  rpc AddComment (AddDocumentCommentRequest) returns (DocumentCommentReply);
+}
+
+message DocumentCommentsRequest { string document_id = 1; }
+message AddDocumentCommentRequest {
+  string document_id = 1;
+  string visibility = 2;
+  string body = 3;
+}
+message DocumentCommentReply {
+  string id = 1;
+  string document_id = 2;
+  string author = 3;
+  string visibility = 4;
+  string body = 5;
+  string created_at = 6;
+}
+message DocumentCommentsReply { repeated DocumentCommentReply comments = 1; }
+
 message SharingRequest { string document_id = 1; }
 
 enum SharingAction {

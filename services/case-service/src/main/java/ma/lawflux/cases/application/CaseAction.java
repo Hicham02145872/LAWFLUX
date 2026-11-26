@@ -5,6 +5,7 @@ public enum CaseAction {
     DOCUMENT_READ,
     DOCUMENT_WRITE,
     DOCUMENT_SHARE,
+    DOCUMENT_COMMENT,
     CASE_ASSIGN,
     CLIENT_PORTAL_READ;
 

@@ -49,6 +49,7 @@ class CaseAccessServiceTest {
         assertTrue(access.allowed(lawyer, caseId, "DOCUMENT_READ"));
         assertTrue(access.allowed(lawyer, caseId, "DOCUMENT_SHARE"));
         assertTrue(access.allowed(client, caseId, "DOCUMENT_READ"));
+        assertTrue(access.allowed(client, caseId, "DOCUMENT_COMMENT"));
         assertFalse(access.allowed(client, caseId, "DOCUMENT_WRITE"));
         assertFalse(access.allowed(caller(clientId, cabinet, "assistant"), caseId, "DOCUMENT_SHARE"));
         assertEquals(2, access.grants(manager, caseId).size());
@@ -57,6 +58,7 @@ class CaseAccessServiceTest {
         access.revoke(manager, caseId, clientId, AccessKind.CLIENT);
         assertFalse(access.allowed(lawyer, caseId, "DOCUMENT_READ"));
         assertFalse(access.allowed(client, caseId, "DOCUMENT_READ"));
+        assertFalse(access.allowed(client, caseId, "DOCUMENT_COMMENT"));
     }
 
     @Test
@@ -67,6 +69,7 @@ class CaseAccessServiceTest {
         CaseCaller manager = caller(managerId, cabinet, "cabinet_manager");
         assertTrue(access.allowed(manager, caseId, "DOCUMENT_READ"));
         assertFalse(access.allowed(manager, caseId, "DOCUMENT_WRITE"));
+        assertFalse(access.allowed(manager, caseId, "DOCUMENT_COMMENT"));
         assertThrows(SecurityException.class, () -> access.grant(manager, caseId, clientId, AccessKind.CLIENT));
     }
 

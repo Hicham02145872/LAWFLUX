@@ -86,7 +86,7 @@ public class DocumentServiceEndpoint extends DocumentServiceGrpc.DocumentService
             CallerContext caller = callerContext.current();
             UUID caseId = GrpcErrors.parseUuid(request.getCaseId(), "Identifiant de dossier invalide");
             ListDocumentsReply.Builder reply = ListDocumentsReply.newBuilder();
-            listUseCase.execute(caller.cabinetId(), caseId).forEach(d -> reply.addDocuments(toSummary(d)));
+            listUseCase.execute(caller, caseId).forEach(d -> reply.addDocuments(toSummary(d)));
             responseObserver.onNext(reply.build());
             responseObserver.onCompleted();
         } catch (RuntimeException e) {
@@ -101,7 +101,7 @@ public class DocumentServiceEndpoint extends DocumentServiceGrpc.DocumentService
             CallerContext caller = callerContext.current();
             UUID documentId = GrpcErrors.parseUuid(request.getDocumentId(), "Identifiant de document invalide");
             ListVersionsReply.Builder reply = ListVersionsReply.newBuilder();
-            listVersionsUseCase.execute(caller.cabinetId(), documentId)
+            listVersionsUseCase.execute(caller, documentId)
                     .forEach(v -> reply.addVersions(toSummary(v)));
             responseObserver.onNext(reply.build());
             responseObserver.onCompleted();

@@ -23,14 +23,14 @@ public class CaseAccessService {
 
         if (caller.hasRole("cabinet_manager")) return true;
         if (caller.hasRole("client")) {
-            return action.isRead() && repository.hasActiveGrant(
+            return (action.isRead() || action == CaseAction.DOCUMENT_COMMENT) && repository.hasActiveGrant(
                     caller.cabinetId(), caseId, caller.userId(), AccessKind.CLIENT);
         }
         if (caller.hasRole("lawyer") || caller.hasRole("assistant")) {
             if (!repository.hasActiveGrant(caller.cabinetId(), caseId, caller.userId(), AccessKind.STAFF))
                 return false;
             return switch (action) {
-                case CASE_READ, DOCUMENT_READ, DOCUMENT_WRITE -> true;
+                case CASE_READ, DOCUMENT_READ, DOCUMENT_WRITE, DOCUMENT_COMMENT -> true;
                 case DOCUMENT_SHARE -> caller.hasRole("lawyer");
                 case CASE_ASSIGN, CLIENT_PORTAL_READ -> false;
             };
