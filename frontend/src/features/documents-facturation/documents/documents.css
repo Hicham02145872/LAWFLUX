@@ -73,3 +73,15 @@
     text-align: center;
     color: #5b6478;
   }
+
+  .doc-comments { list-style: none; padding: 0; display: grid; gap: 12px; }
+  .doc-comments li { padding: 16px; border: 1px solid #e4e7ee; border-radius: 10px; background: #fff; }
+  .doc-comment-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .doc-comment-head time { color: #5b6478; font-size: .875rem; }
+  .doc-comments p { margin: 10px 0 0; white-space: pre-wrap; }
+  .doc-comment-form { display: grid; gap: 10px; max-width: 700px; margin: 24px 0; }
+  .doc-comment-form label { font-weight: 600; }
+  .doc-comment-form textarea, .doc-comment-form select { width: 100%; padding: 10px; border: 1px solid #a4afc2; border-radius: 8px; font: inherit; }
+  .doc-comment-form button { justify-self: start; }
+  .doc-sharing { padding: 20px; border: 1px solid #e4e7ee; border-radius: 10px; background: #fff; }
+  .doc-sharing-actions { display: flex; flex-wrap: wrap; gap: 12px; }

@@ -1,72 +1,48 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { authorizedFetch, authorizedUpload } from '../../system/auth'
 import type { DocumentVersion } from './types'
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
-const store = new Map<string, DocumentVersion[]>()
-
-function versionsOf(documentId: string): DocumentVersion[] {
-  if (!store.has(documentId)) {
-    store.set(documentId, [
-      { number: 2, author: 'Sara', createdAt: '2026-11-08' },
-      { number: 1, author: 'Karim', createdAt: '2026-11-01' },
-    ])
-  }
-  return store.get(documentId)!
-}
-
-// MOCK : à remplacer par le hook fourni par le chef.
-// États de test : ?etat=vide ou ?etat=erreur
 export function useVersions(documentId: string) {
-  const [params] = useSearchParams()
-  const etat = params.get('etat')
   const [versions, setVersions] = useState<DocumentVersion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
 
   useEffect(() => {
-    let cancelled = false
+    let active = true
     setLoading(true)
     setError(null)
-    void wait(600).then(() => {
-      if (cancelled) return
-      if (etat === 'erreur') setError('Impossible de charger les versions.')
-      else setVersions(etat === 'vide' ? [] : [...versionsOf(documentId)])
-      setLoading(false)
-    })
-    return () => { cancelled = true }
-  }, [documentId, etat, refresh])
+    void authorizedFetch(`/api/documents/${encodeURIComponent(documentId)}/versions`)
+      .then(async response => {
+        if (!response.ok) throw new Error(`Chargement impossible (${response.status}).`)
+        return response.json() as Promise<DocumentVersion[]>
+      })
+      .then(items => { if (active) setVersions(items) })
+      .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Chargement impossible.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [documentId, refresh])
 
-  const reload = useCallback(() => setRefresh((v) => v + 1), [])
+  const reload = useCallback(() => setRefresh(value => value + 1), [])
   return { versions, loading, error, reload }
 }
 
-// MOCK : à remplacer par la fonction fournie par le chef.
-// Le numéro de version sera attribué par le serveur (ici simulé).
 export function useAddVersion(documentId: string, onSuccess: () => void) {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function addVersion(_file: File) {
+  async function addVersion(file: File): Promise<boolean> {
     setSending(true)
     setError(null)
     try {
-      await wait(800)
-      const list = versionsOf(documentId)
-      list.unshift({
-        number: (list[0]?.number ?? 0) + 1,
-        author: 'Moi',
-        createdAt: new Date().toISOString().slice(0, 10),
-      })
+      const response = await authorizedUpload(`/api/documents/${encodeURIComponent(documentId)}/versions`, file, () => {})
+      if (!response.ok) throw new Error(`Version refusée (${response.status}).`)
       onSuccess()
-    } catch {
-      setError("L'ajout de la version a échoué. Réessayez.")
-    } finally {
-      setSending(false)
-    }
+      return true
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "L'ajout a échoué.")
+      return false
+    } finally { setSending(false) }
   }
-
   return { addVersion, sending, error }
 }

@@ -1,7 +1,7 @@
 import './documents.css'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { Page } from '../../../shared/Page'
 import { useDocuments, useUploadDocument } from './useDocuments'
 
@@ -10,7 +10,7 @@ const ACCEPTED = /\.(pdf|docx)$/i
 export function DocumentListPage() {
   const { id } = useParams()
   const { documents, loading, error, reload } = useDocuments(id)
-  const { upload, uploading, progress, error: uploadError } = useUploadDocument(reload)
+  const { upload, uploading, progress, error: uploadError } = useUploadDocument(id, reload)
   const [file, setFile] = useState<File | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
@@ -20,9 +20,10 @@ export function DocumentListPage() {
     if (!file) return setFormError('Sélectionnez un fichier PDF ou DOCX.')
     if (!ACCEPTED.test(file.name)) return setFormError('Format non pris en charge : PDF ou DOCX uniquement.')
     setFormError(null)
-    await upload(file)
-    formRef.current?.reset()
-    setFile(null)
+    if (await upload(file)) {
+      formRef.current?.reset()
+      setFile(null)
+    }
   }
 
   return (
@@ -63,7 +64,7 @@ export function DocumentListPage() {
     <tbody>
       {documents.map((d) => (
         <tr key={d.id}>
-          <td>{d.name}</td>
+          <td>{d.name}<br /><Link to={`/documents/${encodeURIComponent(d.id)}/versions`}>Versions</Link> · <Link to={`/documents/${encodeURIComponent(d.id)}/partage`}>Partage</Link> · <Link to={`/documents/${encodeURIComponent(d.id)}/commentaires`}>Commentaires</Link></td>
           <td>
             <span className={`doc-badge doc-badge--${d.type.toLowerCase()}`}>{d.type}</span>
           </td>

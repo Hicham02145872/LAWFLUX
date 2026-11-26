@@ -21,6 +21,27 @@ export async function authorizedFetch(input: RequestInfo | URL, init: RequestIni
   }
   return response
 }
+export async function authorizedUpload(url: string, file: File, onProgress: (percent: number) => void): Promise<Response> {
+  if (!accessToken) throw new Error('Session expirée. Veuillez vous reconnecter.')
+  const token = accessToken
+  const form = new FormData()
+  form.append('file', file)
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.upload.onprogress = event => {
+      if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100))
+    }
+    xhr.onload = () => {
+      if (xhr.status === 401) { accessToken = null; idToken = null; setProfile(null) }
+      resolve(new Response(xhr.responseText, { status: xhr.status,
+        headers: { 'Content-Type': xhr.getResponseHeader('Content-Type') ?? 'application/json' } }))
+    }
+    xhr.onerror = () => reject(new Error('Connexion au serveur impossible.'))
+    xhr.send(form)
+  })
+}
 export const subscribeToAuth = (listener: () => void) => {
   listeners.add(listener)
   return () => { listeners.delete(listener) }

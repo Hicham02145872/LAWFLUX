@@ -1,68 +1,52 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router'
-import { mockDocuments } from './mocks'
+import { authorizedFetch, authorizedUpload } from '../../system/auth'
 import type { DocumentItem } from './types'
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-const store: DocumentItem[] = [...mockDocuments]
-
-// MOCK : à remplacer par le hook fourni par le chef.
-// Pour tester les états : ?etat=vide ou ?etat=erreur (à supprimer ensuite).
 export function useDocuments(dossierId: string | undefined) {
-  const [params] = useSearchParams()
-  const etat = params.get('etat')
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
-    let cancelled = false
+    if (!dossierId) { setError('Dossier introuvable.'); setLoading(false); return }
+    let active = true
     setLoading(true)
     setError(null)
-    void wait(600).then(() => {
-      if (cancelled) return
-      if (etat === 'erreur') setError('Impossible de charger les documents.')
-        else setDocuments(etat === 'vide' ? [] : [...store])
+    void authorizedFetch(`/api/dossiers/${encodeURIComponent(dossierId)}/documents`)
+      .then(async response => {
+        if (!response.ok) throw new Error(`Chargement impossible (${response.status}).`)
+        return response.json() as Promise<DocumentItem[]>
+      })
+      .then(items => { if (active) setDocuments(items) })
+      .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Chargement impossible.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [dossierId, version])
 
-      setLoading(false)
-    })
-    return () => { cancelled = true }
-  }, [dossierId, etat, version])
-
-  const reload = useCallback(() => setVersion((v) => v + 1), [])
+  const reload = useCallback(() => setVersion(value => value + 1), [])
   return { documents, loading, error, reload }
 }
 
-// MOCK : à remplacer par la fonction d'upload fournie par le chef.
-export function useUploadDocument(onSuccess: () => void) {
+export function useUploadDocument(dossierId: string | undefined, onSuccess: () => void) {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
-  async function upload(file: File) {
+  async function upload(file: File): Promise<boolean> {
+    if (!dossierId) { setError('Dossier introuvable.'); return false }
     setUploading(true)
     setProgress(0)
     setError(null)
     try {
-      for (const p of [25, 50, 75, 100]) {
-        await wait(300)
-        setProgress(p)
-      }
-      store.unshift({
-        id: crypto.randomUUID(),
-        name: file.name,
-        type: /\.pdf$/i.test(file.name) ? 'PDF' : 'DOCX',
-        author: 'Moi',
-        createdAt: new Date().toISOString().slice(0, 10),
-      })
+      const response = await authorizedUpload(`/api/dossiers/${encodeURIComponent(dossierId)}/documents`, file, setProgress)
+      if (!response.ok) throw new Error(`Import refusé (${response.status}).`)
       onSuccess()
-    } catch {
-      setError("L'import a échoué. Réessayez.")
-    } finally {
-      setUploading(false)
-    }
+      return true
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "L'import a échoué.")
+      return false
+    } finally { setUploading(false) }
   }
-
   return { upload, uploading, progress, error }
 }

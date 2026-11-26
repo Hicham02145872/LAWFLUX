@@ -20,9 +20,10 @@ export function VersionListPage() {
     if (!file) return setFormError('Sélectionnez un fichier PDF ou DOCX.')
     if (!ACCEPTED.test(file.name)) return setFormError('Format non pris en charge : PDF ou DOCX uniquement.')
     setFormError(null)
-    await addVersion(file)
-    formRef.current?.reset()
-    setFile(null)
+    if (await addVersion(file)) {
+      formRef.current?.reset()
+      setFile(null)
+    }
   }
 
   return (
